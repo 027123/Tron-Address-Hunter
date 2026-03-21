@@ -28,9 +28,9 @@ set QUIT=1
 set /p QUIT="How many addresses to find (1-10000) [default: 1]: "
 if "%QUIT%"=="" set QUIT=1
 
-:: Timestamp filename
-set TIMESTAMP=%date:~0,4%%date:~5,2%%date:~8,2%-%time:~0,2%%time:~3,2%%time:~6,2%
-set TIMESTAMP=%TIMESTAMP: =0%
+:: Timestamp filename (locale-safe)
+for /f "tokens=2 delims==" %%i in ('wmic os get localdatetime /value') do set DT=%%i
+set TIMESTAMP=%DT:~0,8%-%DT:~8,6%
 set OUTFILE=result\result-%TIMESTAMP%.txt
 
 echo.
