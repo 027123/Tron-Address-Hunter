@@ -33,6 +33,10 @@ Mode Mode::matching(std::string matchingInput) {
 		if (file.is_open()) {
 			std::string line;
 			while (std::getline(file, line)) {
+				// Remove trailing \r from Windows line endings
+				if (!line.empty() && line.back() == '\r') {
+					line.pop_back();
+				}
 				std::stringstream ss;
 				if(line.size() == 20 || line.size() == 34) {
 					if(line.size() == 34) {
