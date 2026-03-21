@@ -175,7 +175,7 @@ int main(int argc, char **argv)
 		size_t worksizeMax = 0;
 		bool bNoCache = false;
 		size_t inverseSize = 255;
-		size_t inverseMultiple = 16384;
+		size_t inverseMultiple = 32768;
 		size_t prefixCount = 0;
 		size_t suffixCount = 6;
 		size_t quitCount = 0;

@@ -466,13 +466,13 @@ void profanity_result_update(
 }
 
 __kernel void profanity_score_matching(
-	__global mp_number * const pInverse, 
-	__global result * const pResult, 
-	__constant const uchar * const data1, 
-	__constant const uchar * const data2, 
-	const uchar scoreMax, 
-	const uchar matchingCount, 
-	const uchar prefixCount, 
+	__global mp_number * const pInverse,
+	__global result * const pResult,
+	__constant const uchar * const data1,
+	__constant const uchar * const data2,
+	const uchar scoreMax,
+	const uchar matchingCount,
+	const uchar prefixCount,
 	const uchar suffixCount)
 {
 	const size_t id = get_global_id(0);
@@ -480,41 +480,44 @@ __kernel void profanity_score_matching(
 
 	uchar tron_hash[25];
 	ethhash_to_tronhash(hash, tron_hash);
-	char tron_hash_address[34];
- 	base58_encode(tron_hash, tron_hash_address, 25);
-	
-	char matchingHash[20];
-	uint j = 0;
-	for (uint i = 0; i < 34; i++) {
-		if(i < 10 || i >= 24) {
-			matchingHash[j] = tron_hash_address[i];
-			j++;
-		}
-	}
+	char tron_addr[34];
+	base58_encode(tron_hash, tron_addr, 25);
+
+	/* Match directly against tron_addr — no intermediate copy needed.
+	 * Prefix positions [0..9]  -> tron_addr[0..9]   (data index 0..9)
+	 * Suffix positions [10..19] -> tron_addr[24..33] (data index 10..19)
+	 * Mapping: data index i in [10,19] -> tron_addr[i + 14] */
 	for(uint j = 0; j < matchingCount; j++) {
+		const uint base = j * 20;
 		uint scorePrefix = 1;
 		uint scoreSuffix = 0;
-		uint dataIndex = 0;
+
 		if(prefixCount > 1) {
 			for (uint i = 1; i < 10; ++i) {
-				dataIndex = j * 20 + i;
-				if (data1[dataIndex] > 0 && (matchingHash[i] & data1[dataIndex]) == data2[dataIndex]) {
+				const uint di = base + i;
+				if (data1[di] > 0 && (tron_addr[i] & data1[di]) == data2[di]) {
 					++scorePrefix;
 				} else {
 					break;
 				}
 			}
+			/* Early exit: prefix cannot match, skip suffix check */
+			if (scorePrefix < prefixCount) {
+				continue;
+			}
 		}
+
 		if(suffixCount > 0) {
 			for (uint i = 19; i > 10; --i) {
-				dataIndex = j * 20 + i;
-				if (data1[dataIndex] > 0 && (matchingHash[i] & data1[dataIndex]) == data2[dataIndex]) {
+				const uint di = base + i;
+				if (data1[di] > 0 && (tron_addr[i + 14] & data1[di]) == data2[di]) {
 					++scoreSuffix;
 				} else {
 					break;
 				}
 			}
 		}
+
 		if(scorePrefix >= prefixCount && scoreSuffix >= suffixCount){
 			profanity_result_update(id, hash, pResult, scoreMax);
 			break;
