@@ -29,8 +29,7 @@ set /p QUIT="How many addresses to find (1-10000) [default: 1]: "
 if "%QUIT%"=="" set QUIT=1
 
 :: Timestamp filename (locale-safe)
-for /f "tokens=2 delims==" %%i in ('wmic os get localdatetime /value') do set DT=%%i
-set TIMESTAMP=%DT:~0,8%-%DT:~8,6%
+for /f %%i in ('powershell -noprofile -command "Get-Date -Format yyyyMMdd-HHmmss"') do set TIMESTAMP=%%i
 set OUTFILE=result\result-%TIMESTAMP%.txt
 
 echo.
