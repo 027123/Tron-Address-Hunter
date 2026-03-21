@@ -10,7 +10,9 @@
 #include <algorithm>
 
 #include "precomp.hpp"
+#ifndef NO_CURL
 #include <curl/curl.h>
+#endif
 
 static const uint8_t base58Alphabet[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
@@ -457,6 +459,7 @@ static void writeResult(const std::string& privateKey, const std::string& addres
 	}
 }
 
+#ifndef NO_CURL
 static size_t handlePostOutput(void* ptr, size_t size, size_t nmemb, void* stream)
 {
 	(void)ptr;
@@ -490,6 +493,9 @@ static void postResult(const std::string& privateKey, const std::string& address
 		}
 	}
 }
+#else
+static void postResult(const std::string&, const std::string&, const std::string&) {}
+#endif
 
 static void printResult(
 	cl_ulong4 seed,
