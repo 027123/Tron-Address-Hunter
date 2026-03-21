@@ -4,141 +4,171 @@
 #include <string>
 
 const std::string kernel_sha256 = R"(
-#define H0 0x6a09e667
-#define H1 0xbb67ae85
-#define H2 0x3c6ef372
-#define H3 0xa54ff53a
-#define H4 0x510e527f
-#define H5 0x9b05688c
-#define H6 0x1f83d9ab
-#define H7 0x5be0cd19
 
-#define STR(s) #s
-#define XSTR(s) STR(s)
+/* SHA-256 round constants in __constant memory (shared by all work items).
+ * Moving these out of per-thread private memory saves ~256 bytes of register
+ * pressure per SHA-256 invocation.  Since the scoring kernel calls SHA-256
+ * twice, this frees ~512 bytes of registers per thread — a significant
+ * occupancy improvement on most GPUs. */
+__constant const uint sha256_K[64] = {
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
+  0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+  0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+  0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
+  0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+  0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+  0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+};
 
-inline uint rotr(uint x, int n) {
+#define SHA256_H0 0x6a09e667
+#define SHA256_H1 0xbb67ae85
+#define SHA256_H2 0x3c6ef372
+#define SHA256_H3 0xa54ff53a
+#define SHA256_H4 0x510e527f
+#define SHA256_H5 0x9b05688c
+#define SHA256_H6 0x1f83d9ab
+#define SHA256_H7 0x5be0cd19
+
+inline uint sha_rotr(uint x, int n) {
   return (x >> n) | (x << (32 - n));
 }
 
-inline uint ch(uint x, uint y, uint z) {
+inline uint sha_ch(uint x, uint y, uint z) {
   return (x & y) ^ (~x & z);
 }
 
-inline uint maj(uint x, uint y, uint z) {
+inline uint sha_maj(uint x, uint y, uint z) {
   return (x & y) ^ (x & z) ^ (y & z);
 }
 
-inline uint sig0(uint x) { return rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3); }
-inline uint sig1(uint x) { return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10); }
-inline uint csig0(uint x) { return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22); }
-inline uint csig1(uint x) { return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25); }
+inline uint sha_sig0(uint x) { return sha_rotr(x, 7) ^ sha_rotr(x, 18) ^ (x >> 3); }
+inline uint sha_sig1(uint x) { return sha_rotr(x, 17) ^ sha_rotr(x, 19) ^ (x >> 10); }
+inline uint sha_csig0(uint x) { return sha_rotr(x, 2) ^ sha_rotr(x, 13) ^ sha_rotr(x, 22); }
+inline uint sha_csig1(uint x) { return sha_rotr(x, 6) ^ sha_rotr(x, 11) ^ sha_rotr(x, 25); }
 
-void sha256(const uint len, const uchar *key, uchar *output) {
-  int qua;                     // Message schedule step quantity
-  int mod;                     // Message schedule step modulus
-  uint A, B, C, D, E, F, G, H; // Compression targets
-  uint T1, T2;                 // Compression temp
-  uint W[80];                  // Message schedule
-  const uint K[64] =           // Cube roots of first 64 primes
-      {0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
-       0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-       0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
-       0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-       0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
-       0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-       0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
-       0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-       0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
-       0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-       0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
+/* ------------------------------------------------------------------ */
+/* Specialized SHA-256 for exactly 21-byte input.                      */
+/* Used for: SHA256(0x41 || 20-byte-hash) in TRON address generation. */
+/* Eliminates all branching and uses W[64] instead of W[80].           */
+/* ------------------------------------------------------------------ */
+void sha256_21(const uchar *key, uchar *output) {
+  uint W[64];
 
-#pragma unroll
-  for (int i = 0; i < 80; i++) {
-    W[i] = 0x00000000;
-  }
-
-  qua = len / 4;
-
-  mod = len % 4;
-  for (int i = 0; i < qua; i++) {
-    W[i] = (key[i * 4 + 0]) << 24;
-    W[i] |= (key[i * 4 + 1]) << 16;
-    W[i] |= (key[i * 4 + 2]) << 8;
-    W[i] |= (key[i * 4 + 3]);
-  }
-
-  if (mod == 0) {
-    W[qua] = 0x80000000;
-  } else if (mod == 1) {
-    W[qua] = (key[qua * 4]) << 24;
-    W[qua] |= 0x800000;
-  } else if (mod == 2) {
-    W[qua] = (key[qua * 4]) << 24;
-    W[qua] |= (key[qua * 4 + 1]) << 16;
-    W[qua] |= 0x8000;
-  } else {
-    W[qua] = (key[qua * 4]) << 24;
-    W[qua] |= (key[qua * 4 + 1]) << 16;
-    W[qua] |= (key[qua * 4 + 2]) << 8;
-    W[qua] |= 0x80;
-  }
-
-  W[15] = len * 8;
+  /* Load 21 bytes into message schedule — fully unrolled, no branches */
+  W[0]  = ((uint)key[0]  << 24) | ((uint)key[1]  << 16) | ((uint)key[2]  << 8) | (uint)key[3];
+  W[1]  = ((uint)key[4]  << 24) | ((uint)key[5]  << 16) | ((uint)key[6]  << 8) | (uint)key[7];
+  W[2]  = ((uint)key[8]  << 24) | ((uint)key[9]  << 16) | ((uint)key[10] << 8) | (uint)key[11];
+  W[3]  = ((uint)key[12] << 24) | ((uint)key[13] << 16) | ((uint)key[14] << 8) | (uint)key[15];
+  W[4]  = ((uint)key[16] << 24) | ((uint)key[17] << 16) | ((uint)key[18] << 8) | (uint)key[19];
+  W[5]  = ((uint)key[20] << 24) | 0x00800000u;
+  W[6]  = 0; W[7]  = 0; W[8]  = 0; W[9]  = 0;
+  W[10] = 0; W[11] = 0; W[12] = 0; W[13] = 0;
+  W[14] = 0;
+  W[15] = 168u;  /* 21 * 8 */
 
 #pragma unroll
   for (int i = 16; i < 64; i++) {
-    W[i] = sig1(W[i - 2]) + W[i - 7] + sig0(W[i - 15]) + W[i - 16];
+    W[i] = sha_sig1(W[i - 2]) + W[i - 7] + sha_sig0(W[i - 15]) + W[i - 16];
   }
 
-  A = H0;
-  B = H1;
-  C = H2;
-  D = H3;
-  E = H4;
-  F = H5;
-  G = H6;
-  H = H7;
+  uint A = SHA256_H0, B = SHA256_H1, C = SHA256_H2, D = SHA256_H3;
+  uint E = SHA256_H4, F = SHA256_H5, G = SHA256_H6, H = SHA256_H7;
+  uint T1, T2;
 
 #pragma unroll
   for (int i = 0; i < 64; i++) {
-    T1 = H + csig1(E) + ch(E, F, G) + K[i] + W[i];
-    T2 = csig0(A) + maj(A, B, C);
-    H = G;
-    G = F;
-    F = E;
-    E = D + T1;
-    D = C;
-    C = B;
-    B = A;
-    A = T1 + T2;
+    T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i];
+    T2 = sha_csig0(A) + sha_maj(A, B, C);
+    H = G; G = F; F = E; E = D + T1;
+    D = C; C = B; B = A; A = T1 + T2;
   }
 
-  W[0] = A + H0;
-  W[1] = B + H1;
-  W[2] = C + H2;
-  W[3] = D + H3;
-  W[4] = E + H4;
-  W[5] = F + H5;
-  W[6] = G + H6;
-  W[7] = H + H7;
+  W[0] = A + SHA256_H0; W[1] = B + SHA256_H1;
+  W[2] = C + SHA256_H2; W[3] = D + SHA256_H3;
+  W[4] = E + SHA256_H4; W[5] = F + SHA256_H5;
+  W[6] = G + SHA256_H6; W[7] = H + SHA256_H7;
+
   for (int i = 0; i < 8; i++) {
     output[i * 4 + 0] = (W[i] >> 24) & 0xFF;
     output[i * 4 + 1] = (W[i] >> 16) & 0xFF;
-    output[i * 4 + 2] = (W[i] >> 8) & 0xFF;
-    output[i * 4 + 3] = W[i] & 0xFF;
+    output[i * 4 + 2] = (W[i] >> 8)  & 0xFF;
+    output[i * 4 + 3] =  W[i]        & 0xFF;
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Specialized SHA-256 for exactly 32-byte input.                      */
+/* Used for: SHA256(first_hash) in double-SHA256 TRON checksum.        */
+/* ------------------------------------------------------------------ */
+void sha256_32(const uchar *key, uchar *output) {
+  uint W[64];
+
+  /* Load 32 bytes — exactly 8 words, no branches */
+  W[0] = ((uint)key[0]  << 24) | ((uint)key[1]  << 16) | ((uint)key[2]  << 8) | (uint)key[3];
+  W[1] = ((uint)key[4]  << 24) | ((uint)key[5]  << 16) | ((uint)key[6]  << 8) | (uint)key[7];
+  W[2] = ((uint)key[8]  << 24) | ((uint)key[9]  << 16) | ((uint)key[10] << 8) | (uint)key[11];
+  W[3] = ((uint)key[12] << 24) | ((uint)key[13] << 16) | ((uint)key[14] << 8) | (uint)key[15];
+  W[4] = ((uint)key[16] << 24) | ((uint)key[17] << 16) | ((uint)key[18] << 8) | (uint)key[19];
+  W[5] = ((uint)key[20] << 24) | ((uint)key[21] << 16) | ((uint)key[22] << 8) | (uint)key[23];
+  W[6] = ((uint)key[24] << 24) | ((uint)key[25] << 16) | ((uint)key[26] << 8) | (uint)key[27];
+  W[7] = ((uint)key[28] << 24) | ((uint)key[29] << 16) | ((uint)key[30] << 8) | (uint)key[31];
+  W[8] = 0x80000000u;
+  W[9]  = 0; W[10] = 0; W[11] = 0; W[12] = 0;
+  W[13] = 0; W[14] = 0;
+  W[15] = 256u;  /* 32 * 8 */
+
+#pragma unroll
+  for (int i = 16; i < 64; i++) {
+    W[i] = sha_sig1(W[i - 2]) + W[i - 7] + sha_sig0(W[i - 15]) + W[i - 16];
+  }
+
+  uint A = SHA256_H0, B = SHA256_H1, C = SHA256_H2, D = SHA256_H3;
+  uint E = SHA256_H4, F = SHA256_H5, G = SHA256_H6, H = SHA256_H7;
+  uint T1, T2;
+
+#pragma unroll
+  for (int i = 0; i < 64; i++) {
+    T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i];
+    T2 = sha_csig0(A) + sha_maj(A, B, C);
+    H = G; G = F; F = E; E = D + T1;
+    D = C; C = B; B = A; A = T1 + T2;
+  }
+
+  W[0] = A + SHA256_H0; W[1] = B + SHA256_H1;
+  W[2] = C + SHA256_H2; W[3] = D + SHA256_H3;
+  W[4] = E + SHA256_H4; W[5] = F + SHA256_H5;
+  W[6] = G + SHA256_H6; W[7] = H + SHA256_H7;
+
+  for (int i = 0; i < 8; i++) {
+    output[i * 4 + 0] = (W[i] >> 24) & 0xFF;
+    output[i * 4 + 1] = (W[i] >> 16) & 0xFF;
+    output[i * 4 + 2] = (W[i] >> 8)  & 0xFF;
+    output[i * 4 + 3] =  W[i]        & 0xFF;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Optimized TRON address hash conversion.                             */
+/* Uses specialized SHA256 variants to avoid branches and reduce       */
+/* register pressure (W[64] instead of W[80], K from __constant).     */
+/* ------------------------------------------------------------------ */
 void ethhash_to_tronhash(const uchar *ethhash, uchar *tronhash) {
   uchar hash0[21];
   uchar hash1[32];
   uchar hash2[32];
+
+  hash0[0] = 65;  /* 0x41 — TRON network prefix */
   for (uint i = 0; i < 20; i++) {
     hash0[i + 1] = ethhash[i];
   }
-  hash0[0] = 65;
-  sha256(sizeof(hash0), hash0, hash1);
-  sha256(sizeof(hash1), hash1, hash2);
+
+  sha256_21(hash0, hash1);
+  sha256_32(hash1, hash2);
+
   for (uint i = 0; i < 21; i++) {
     tronhash[i] = hash0[i];
   }
@@ -151,8 +181,9 @@ void ethhash_to_tronhash(const uchar *ethhash, uchar *tronhash) {
 __constant char alphabet[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 void base58_encode(const uchar *input, char *output, const int input_len) {
-  __private uint digits[32] = {0};
+  __private uint digits[34] = {0};
   int digit_count = 1;
+
   for (int i = 0; i < input_len; i++) {
     uint carry = input[i];
     for (int j = 0; j < digit_count; j++) {
@@ -166,18 +197,11 @@ void base58_encode(const uchar *input, char *output, const int input_len) {
     }
   }
 
-  int zero_count = 0;
-  while (zero_count < input_len && input[zero_count] == 0) {
-    zero_count++;
-  }
+  /* For TRON addresses the first byte is 0x41 (non-zero),
+   * so zero_count is always 0.  We skip that check entirely. */
   int output_idx = 0;
-  output[output_idx++] = alphabet[digits[digit_count - 1]];
-  for (int i = digit_count - 2; i >= 0; i--) {
-    if (zero_count > 0) {
-      zero_count--;
-    } else {
-      output[output_idx++] = alphabet[digits[i]];
-    }
+  for (int i = digit_count - 1; i >= 0; i--) {
+    output[output_idx++] = alphabet[digits[i]];
   }
   output[output_idx] = '\0';
 }
