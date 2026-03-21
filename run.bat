@@ -2,6 +2,12 @@
 chcp 65001 >nul
 title Tron Address Hunter
 
+:: Auto-detect script directory, works anywhere
+cd /d "%~dp0"
+
+:: Create result directory
+if not exist "result" mkdir result
+
 echo ============================================
 echo        Tron Address Hunter
 echo ============================================
@@ -25,7 +31,7 @@ if "%QUIT%"=="" set QUIT=1
 :: Timestamp filename
 set TIMESTAMP=%date:~0,4%%date:~5,2%%date:~8,2%-%time:~0,2%%time:~3,2%%time:~6,2%
 set TIMESTAMP=%TIMESTAMP: =0%
-set OUTFILE=result-%TIMESTAMP%.txt
+set OUTFILE=result\result-%TIMESTAMP%.txt
 
 echo.
 echo ============================================
