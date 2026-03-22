@@ -278,6 +278,20 @@ int main(int argc, char **argv)
 		mode.prefixCount = prefixCount;
 		mode.suffixCount = suffixCount;
 
+		// Startup summary
+		std::cout << std::endl;
+		std::cout << "Configuration:" << std::endl;
+		std::cout << "  Matching:      " << matchingInput << " (" << mode.matchingCount << " pattern(s))" << std::endl;
+		std::cout << "  Prefix count:  " << prefixCount << std::endl;
+		std::cout << "  Suffix count:  " << suffixCount << std::endl;
+		if (quitCount > 0) {
+			std::cout << "  Quit count:    " << quitCount << std::endl;
+		}
+		if (!outputFile.empty()) {
+			std::cout << "  Output file:   " << outputFile << std::endl;
+		}
+		std::cout << std::endl;
+
 		std::vector<cl_device_id> vFoundDevices = getAllDevices();
 		std::vector<cl_device_id> vDevices;
 		std::map<cl_device_id, size_t> mDeviceIndex;
