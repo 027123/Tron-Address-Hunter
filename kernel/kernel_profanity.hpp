@@ -460,18 +460,51 @@ __kernel void profanity_iterate_score(
 
 	uchar tron_hash[25];
 	ethhash_to_tronhash(keccak_hash, tron_hash);
-	char tron_addr[34];
-	base58_encode(tron_hash, tron_addr, 25);
 
-	/* Match directly against tron_addr -- no intermediate copy needed.
-	 * Prefix positions [0..9]  -> tron_addr[0..9]   (data index 0..9)
-	 * Suffix positions [10..19] -> tron_addr[24..33] (data index 10..19)
-	 * Mapping: data index i in [10,19] -> tron_addr[i + 14] */
+	/* Fast path: extract only the suffix characters via modular arithmetic.
+	 * This replaces the expensive full base58 encoding (~2000 ops) with a
+	 * cheap modular reduction (~100 ops) for the >99.9999% of addresses
+	 * that won't match.  Full base58 is only computed on the rare match. */
+	char suffix_chars[10];
+	uint suffixDigits = suffixCount > 9 ? 9 : suffixCount;
+	if (suffixDigits > 0) {
+		base58_suffix(tron_hash, suffix_chars, 25, suffixDigits);
+	}
+
+	/* Match suffix first (fast rejection), then full base58 only if needed */
 	for(uint j = 0; j < matchingCount; j++) {
 		const uint base = j * 20;
-		uint scorePrefix = 1;
 		uint scoreSuffix = 0;
 
+		/* Check suffix using fast-extracted characters */
+		if(suffixCount > 0) {
+			/* suffix_chars[0..N-1] correspond to tron_addr[34-N..33]
+			 * data index 10..19 maps to tron_addr[24..33]
+			 * suffix_chars[k] = tron_addr[34 - suffixDigits + k]
+			 * For data index i (19 down to 10): tron_addr[i+14]
+			 * = suffix_chars[i + 14 - (34 - suffixDigits)]
+			 * = suffix_chars[i - 20 + suffixDigits] */
+			uint ok = 1;
+			for (uint i = 19; i > 19 - suffixDigits; --i) {
+				const uint di = base + i;
+				const uint si = i - 20 + suffixDigits;
+				if (ok && data1[di] > 0 && (suffix_chars[si] & data1[di]) == data2[di]) {
+					++scoreSuffix;
+				} else {
+					ok = 0;
+				}
+			}
+		}
+
+		if (scoreSuffix < suffixCount) {
+			continue;
+		}
+
+		/* Suffix matched! Now do full base58 for prefix check + result */
+		char tron_addr[34];
+		base58_encode(tron_hash, tron_addr, 25);
+
+		uint scorePrefix = 1;
 		if(prefixCount > 1) {
 			for (uint i = 1; i < 10; ++i) {
 				const uint di = base + i;
@@ -483,17 +516,6 @@ __kernel void profanity_iterate_score(
 			}
 			if (scorePrefix < prefixCount) {
 				continue;
-			}
-		}
-
-		if(suffixCount > 0) {
-			for (uint i = 19; i > 10; --i) {
-				const uint di = base + i;
-				if (data1[di] > 0 && (tron_addr[i + 14] & data1[di]) == data2[di]) {
-					++scoreSuffix;
-				} else {
-					break;
-				}
 			}
 		}
 

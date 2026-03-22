@@ -192,6 +192,53 @@ void ethhash_to_tronhash(const uchar *ethhash, uchar *tronhash) {
 
 __constant char alphabet[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
+/* ------------------------------------------------------------------ */
+/* Fast suffix extraction via modular arithmetic.                      */
+/* Computes the last 10 characters of base58(input) WITHOUT doing the  */
+/* full O(n*m) base58 encoding.                                        */
+/*                                                                     */
+/* Math: last 10 base58 digits = input_number mod 58^10, then extract  */
+/* each digit by repeated div/mod 58.                                  */
+/*                                                                     */
+/* The modular reduction uses pure ulong (64-bit) arithmetic:          */
+/*   58^10 < 2^59, so the remainder fits in a ulong.                   */
+/*   Each step: result = (result * 256 + byte) mod 58^10               */
+/*   Overflow (up to 67 bits) handled via precomputed 2^64 mod 58^10.  */
+/* ------------------------------------------------------------------ */
+#define BASE58_MOD        0x05fa8624c7fba400UL  /* 58^10 */
+#define BASE58_POW2_64    0x04e5fdf730b71800UL  /* 2^64 mod 58^10 */
+
+void base58_suffix(const uchar *input, char *output, const int input_len, const int suffix_len) {
+  ulong result = 0;
+
+  for (int i = 0; i < input_len; i++) {
+    ulong overflow = result >> 56;
+    result = (result << 8) | input[i];
+    ulong correction = overflow * BASE58_POW2_64;
+    ulong prev = result;
+    result += correction;
+    if (result < prev) {
+      result += BASE58_POW2_64;
+    }
+    while (result >= BASE58_MOD) {
+      result -= BASE58_MOD;
+    }
+  }
+
+  /* Extract suffix digits (LSB first = last char first) */
+  char tmp[10];
+  for (int i = 0; i < suffix_len; i++) {
+    ulong q = result / 58;
+    tmp[i] = alphabet[(uint)(result - q * 58)];
+    result = q;
+  }
+
+  /* Reverse to natural order */
+  for (int i = 0; i < suffix_len; i++) {
+    output[i] = tmp[suffix_len - 1 - i];
+  }
+}
+
 void base58_encode(const uchar *input, char *output, const int input_len) {
   __private uint digits[34] = {0};
   int digit_count = 1;
