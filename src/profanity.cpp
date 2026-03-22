@@ -10,6 +10,7 @@
 #include <set>
 #include <ctime>
 #include <chrono>
+#include <filesystem>
 
 #if defined(__APPLE__) || defined(__MACOSX)
 #include <OpenCL/cl.h>
@@ -233,6 +234,21 @@ int main(int argc, char **argv)
 			}
 		}
 
+		// Auto-create output directory if it doesn't exist
+		if (!outputFile.empty()) {
+			std::filesystem::path outPath(outputFile);
+			auto parentDir = outPath.parent_path();
+			if (!parentDir.empty() && !std::filesystem::exists(parentDir)) {
+				std::error_code ec;
+				std::filesystem::create_directories(parentDir, ec);
+				if (ec) {
+					std::cout << "error: failed to create output directory '" << parentDir.string() << "': " << ec.message() << std::endl;
+					return 1;
+				}
+				std::cout << "  Created output directory: " << parentDir.string() << std::endl;
+			}
+		}
+
 		if (matchingInput.empty())
 		{
 			std::cout << "error: matching file must be specified :<" << std::endl;
@@ -261,6 +277,20 @@ int main(int argc, char **argv)
 
 		mode.prefixCount = prefixCount;
 		mode.suffixCount = suffixCount;
+
+		// Startup summary
+		std::cout << std::endl;
+		std::cout << "Configuration:" << std::endl;
+		std::cout << "  Matching:      " << matchingInput << " (" << mode.matchingCount << " pattern(s))" << std::endl;
+		std::cout << "  Prefix count:  " << prefixCount << std::endl;
+		std::cout << "  Suffix count:  " << suffixCount << std::endl;
+		if (quitCount > 0) {
+			std::cout << "  Quit count:    " << quitCount << std::endl;
+		}
+		if (!outputFile.empty()) {
+			std::cout << "  Output file:   " << outputFile << std::endl;
+		}
+		std::cout << std::endl;
 
 		std::vector<cl_device_id> vFoundDevices = getAllDevices();
 		std::vector<cl_device_id> vDevices;

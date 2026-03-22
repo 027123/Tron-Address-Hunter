@@ -44,14 +44,18 @@ Config file format (one option per line, # for comments):
 
 About:
 
-  Profanity is a vanity address generator for tron: https://tron.network/
-  This software is modified based on ethereum profanity: https://github.com/johguse/profanity
-  Please make sure the program you are running is download from: https://github.com/GG4mida/profanity-tron
-  Author: telegram -> @jackslowfak
+  Tron Address Hunter is a GPU-accelerated vanity address generator for TRON.
+  Based on ethereum profanity: https://github.com/johguse/profanity
+  Project: https://github.com/027123/Tron-Address-Hunter
 
-Fbi Warning:
+Note:
 
-  Before using a generated vanigity address, always verify that it matches the printed private key.
+  Base58 encoding excludes 4 characters: 0 (zero), O (uppercase), I (uppercase), l (lowercase).
+  Patterns containing these characters will never match.
+
+Warning:
+
+  Before using a generated vanity address, always verify that it matches the printed private key.
   And always multi-sign the address to ensure account security.
 )";
 
