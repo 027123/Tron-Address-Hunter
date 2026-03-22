@@ -114,7 +114,7 @@ Dispatcher::OpenCLException::OpenCLException(
 {
 }
 
-void Dispatcher::OpenCLException::OpenCLException::throwIfError(const std::string s, const cl_int res)
+void Dispatcher::OpenCLException::throwIfError(const std::string s, const cl_int res)
 {
 	if (res != CL_SUCCESS)
 	{
@@ -369,7 +369,7 @@ void Dispatcher::initContinue(Device &d)
 		cl_event event;
 		const size_t sizeRun = (std::min)(sizeInitLimit, (std::min)(sizeLeft, m_worksizeMax));
 		const auto resEnqueue = clEnqueueNDRangeKernel(d.m_clQueue, d.m_kernelInit, 1, &d.m_sizeInitialized, &sizeRun, NULL, 0, NULL, &event);
-		OpenCLException::throwIfError("kernel queueing failed during initilization", resEnqueue);
+		OpenCLException::throwIfError("kernel queueing failed during initialization", resEnqueue);
 
 		// See: https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clSetEventCallback.html
 		// If an application needs to wait for completion of a routine from the above list in a callback, please use the non-blocking form of the function, and
@@ -522,11 +522,11 @@ static void printResult(
 	cl_ulong4 seedRes;
 
 	seedRes.s[0] = seed.s[0] + round;
-	carry = seedRes.s[0] < round;
+	carry = seedRes.s[0] < seed.s[0];
 	seedRes.s[1] = seed.s[1] + carry;
-	carry = !seedRes.s[1];
+	carry = carry && (seedRes.s[1] == 0);
 	seedRes.s[2] = seed.s[2] + carry;
-	carry = !seedRes.s[2];
+	carry = carry && (seedRes.s[2] == 0);
 	seedRes.s[3] = seed.s[3] + carry + r.foundId;
 
 	std::ostringstream ss;
@@ -629,6 +629,8 @@ void Dispatcher::printSpeed()
 	++m_countPrint;
 	if (m_countPrint > m_vDevices.size())
 	{
+		m_countPrint = 0;
+
 		// Throttle display to at most once per second
 		const auto now = std::chrono::steady_clock::now();
 		const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastPrintTime).count();
@@ -640,18 +642,15 @@ void Dispatcher::printSpeed()
 
 		std::string strGPUs;
 		double speedTotal = 0;
-		unsigned int i = 0;
 		for (auto &e : m_vDevices)
 		{
 			const auto curSpeed = e->m_speed.getSpeed();
 			speedTotal += curSpeed;
 			strGPUs += " GPU" + toString(e->m_index) + ": " + formatSpeed(curSpeed);
-			++i;
 		}
 
 		const std::string strVT100ClearLine = "\33[2K\r";
 		std::cerr << strVT100ClearLine << "Total: " << formatSpeed(speedTotal) << " -" << strGPUs << '\r' << std::flush;
-		m_countPrint = 0;
 	}
 }
 

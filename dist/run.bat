@@ -15,12 +15,12 @@ echo.
 
 :: Prefix count
 set PREFIX=0
-set /p PREFIX="Match prefix count (0=disabled, 0-12) [default: 0]: "
+set /p PREFIX="Match prefix count (0=disabled, 0-10) [default: 0]: "
 if "%PREFIX%"=="" set PREFIX=0
 
 :: Suffix count
 set SUFFIX=6
-set /p SUFFIX="Match suffix count (4-12) [default: 6]: "
+set /p SUFFIX="Match suffix count (0-10) [default: 6]: "
 if "%SUFFIX%"=="" set SUFFIX=6
 
 :: Quit count
