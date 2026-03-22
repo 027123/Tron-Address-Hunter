@@ -53,7 +53,7 @@ inline uint sha_csig1(uint x) { return sha_rotr(x, 6) ^ sha_rotr(x, 11) ^ sha_ro
 /* ------------------------------------------------------------------ */
 /* Specialized SHA-256 for exactly 21-byte input.                      */
 /* Used for: SHA256(0x41 || 20-byte-hash) in TRON address generation. */
-/* Eliminates all branching and uses W[64] instead of W[80].           */
+/* Eliminates all branching and uses rolling W[16] schedule.           */
 /* ------------------------------------------------------------------ */
 void sha256_21(const uchar *key, uchar *output) {
   uint W[16];

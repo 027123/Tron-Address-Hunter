@@ -499,7 +499,7 @@ __kernel void profanity_iterate_score(
 
 		if(scorePrefix >= prefixCount && scoreSuffix >= suffixCount){
 			uchar score = scoreMax + 1;
-			uchar hasResult = atomic_inc(&pResult[score].found);
+			uint hasResult = atomic_inc(&pResult[score].found);
 			if (hasResult == 0) {
 				pResult[score].foundId = id;
 				for (int i = 0; i < 20; ++i) {
