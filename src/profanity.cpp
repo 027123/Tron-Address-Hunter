@@ -383,9 +383,39 @@ int main(int argc, char **argv)
 		const std::string strBuildOptions = "-D PROFANITY_INVERSE_SIZE=" + toString(inverseSize) + " -D PROFANITY_MAX_SCORE=" + toString(PROFANITY_MAX_SCORE);
 		if (printResult(clBuildProgram(clProgram, vDevices.size(), vDevices.data(), strBuildOptions.c_str(), NULL, NULL)))
 		{
+			// Print build log on failure
+			for (size_t i = 0; i < vDevices.size(); ++i)
+			{
+				size_t logSize = 0;
+				clGetProgramBuildInfo(clProgram, vDevices[i], CL_PROGRAM_BUILD_LOG, 0, NULL, &logSize);
+				if (logSize > 1)
+				{
+					std::string buildLog(logSize, '\0');
+					clGetProgramBuildInfo(clProgram, vDevices[i], CL_PROGRAM_BUILD_LOG, logSize, &buildLog[0], NULL);
+					std::cerr << "  Build log (GPU-" << i << "): " << buildLog << std::endl;
+				}
+			}
 			clReleaseProgram(clProgram);
 			clReleaseContext(clContext);
 			return 1;
+		}
+
+		// Print build warnings if any
+		for (size_t i = 0; i < vDevices.size(); ++i)
+		{
+			size_t logSize = 0;
+			clGetProgramBuildInfo(clProgram, vDevices[i], CL_PROGRAM_BUILD_LOG, 0, NULL, &logSize);
+			if (logSize > 2)
+			{
+				std::string buildLog(logSize, '\0');
+				clGetProgramBuildInfo(clProgram, vDevices[i], CL_PROGRAM_BUILD_LOG, logSize, &buildLog[0], NULL);
+				// Trim trailing whitespace/nulls
+				size_t end = buildLog.find_last_not_of(" \t\n\r\0");
+				if (end != std::string::npos && end > 0)
+				{
+					std::cout << "  Build log (GPU-" << i << "): " << buildLog.substr(0, end + 1) << std::endl;
+				}
+			}
 		}
 
 		// Save binary to improve future start times
