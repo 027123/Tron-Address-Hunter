@@ -20,7 +20,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo Compiling...
-cl /O2 /EHsc /std:c++17 /DNO_CURL /I "OpenCL/include" Dispatcher.cpp Mode.cpp precomp.cpp profanity.cpp SpeedSample.cpp /link /OUT:profanity.exe "OpenCL/lib/OpenCL.lib" ws2_32.lib advapi32.lib
+cl /O2 /EHsc /std:c++17 /I "OpenCL/include" Dispatcher.cpp Mode.cpp precomp.cpp profanity.cpp SpeedSample.cpp /link /OUT:profanity.exe "OpenCL/lib/OpenCL.lib" ws2_32.lib advapi32.lib
 
 if %errorlevel% equ 0 (
     echo.

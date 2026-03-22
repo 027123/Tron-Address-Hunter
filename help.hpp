@@ -22,7 +22,6 @@ Usage: ./profanity [OPTIONS]
 
   Output control:
     --output            The file to output the results to
-    --post              The url to post the results to
 
 Examples:
 
@@ -31,7 +30,6 @@ Examples:
   ./profanity --matching profanity.txt --prefix-count 1 --suffix-count 8
   ./profanity --matching profanity.txt --prefix-count 1 --suffix-count 10 --quit-count 1
   ./profanity --matching profanity.txt --output result.txt
-  ./profanity --matching profanity.txt --post http://127.0.0.1:7002/api
   ./profanity --matching TUqEg3dzVEJNQSVW2HY98z5X8SBdhmao8D --prefix-count 2 --suffix-count 4 --quit-count 1
 
 About:

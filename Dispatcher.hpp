@@ -77,7 +77,7 @@ class Dispatcher {
 		};
 
 	public:
-		Dispatcher(cl_context & clContext, cl_program & clProgram, const Mode mode, const size_t worksizeMax, const size_t inverseSize, const size_t inverseMultiple, const cl_uchar clScoreQuit = 0, const std::string & outputFile = NULL, const std::string & postUrl = NULL);
+		Dispatcher(cl_context & clContext, cl_program & clProgram, const Mode mode, const size_t worksizeMax, const size_t inverseSize, const size_t inverseMultiple, const cl_uchar clScoreQuit = 0, const std::string & outputFile = NULL);
 		~Dispatcher();
 
 		void addDevice(cl_device_id clDeviceId, const size_t worksizeLocal, const size_t index);
@@ -114,7 +114,6 @@ class Dispatcher {
 		cl_uchar m_clScoreMax;
 		cl_uchar m_clScoreQuit;
 		std::string m_outputFile;
-		std::string m_postUrl;
 
 		std::vector<Device *> m_vDevices;
 
