@@ -37,12 +37,12 @@ cd Tron-Address-Hunter
 .\build.bat
 ```
 
-`build.bat` 会自动查找 Visual Studio 环境并编译生成 `profanity.exe`。
+`build.bat` 会自动查找 Visual Studio 环境并编译，生成的 `profanity.exe` 直接输出到 `dist/` 目录，编译完即可运行。
 
 也可以手动编译（在 x64 Native Tools Command Prompt 中）：
 
 ```cmd
-cl /O2 /EHsc /std:c++17 /I "OpenCL/include" /I "third_party" src\Dispatcher.cpp src\Mode.cpp src\precomp.cpp src\profanity.cpp src\SpeedSample.cpp third_party\uECC.c /link /OUT:profanity.exe "OpenCL/lib/OpenCL.lib" ws2_32.lib advapi32.lib
+cl /O2 /EHsc /std:c++17 /I "OpenCL/include" /I "third_party" src\Dispatcher.cpp src\Mode.cpp src\precomp.cpp src\profanity.cpp src\SpeedSample.cpp third_party\uECC.c /link /OUT:dist\profanity.exe "OpenCL/lib/OpenCL.lib" ws2_32.lib advapi32.lib
 ```
 
 ### 编译（Linux/macOS）
@@ -54,8 +54,6 @@ make
 ```
 
 ### 运行
-
-编译完成后，将 `dist/` 目录下的文件复制到 `profanity.exe` 同级目录。
 
 **方式一：交互式运行（推荐）**
 
