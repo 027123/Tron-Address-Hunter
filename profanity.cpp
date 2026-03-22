@@ -304,17 +304,18 @@ int main(int argc, char **argv)
 			bUsedCache = true;
 
 			std::cout << "  Binary kernel loading..." << std::flush;
-			const unsigned char **pKernels = new const unsigned char *[vDevices.size()];
+			std::vector<const unsigned char *> vKernels(vDevices.size());
 			for (size_t i = 0; i < vDeviceBinary.size(); ++i)
 			{
-				pKernels[i] = reinterpret_cast<const unsigned char *>(vDeviceBinary[i].data());
+				vKernels[i] = reinterpret_cast<const unsigned char *>(vDeviceBinary[i].data());
 			}
 
-			cl_int *pStatus = new cl_int[vDevices.size()];
+			std::vector<cl_int> vStatus(vDevices.size());
 
-			clProgram = clCreateProgramWithBinary(clContext, vDevices.size(), vDevices.data(), vDeviceBinarySize.data(), pKernels, pStatus, &errorCode);
+			clProgram = clCreateProgramWithBinary(clContext, vDevices.size(), vDevices.data(), vDeviceBinarySize.data(), vKernels.data(), vStatus.data(), &errorCode);
 			if (printResult(clProgram, errorCode))
 			{
+				clReleaseContext(clContext);
 				return 1;
 			}
 		}
@@ -325,6 +326,7 @@ int main(int argc, char **argv)
 			clProgram = clCreateProgramWithSource(clContext, sizeof(szKernels) / sizeof(char *), szKernels, NULL, &errorCode);
 			if (printResult(clProgram, errorCode))
 			{
+				clReleaseContext(clContext);
 				return 1;
 			}
 		}
@@ -334,6 +336,8 @@ int main(int argc, char **argv)
 		const std::string strBuildOptions = "-D PROFANITY_INVERSE_SIZE=" + toString(inverseSize) + " -D PROFANITY_MAX_SCORE=" + toString(PROFANITY_MAX_SCORE);
 		if (printResult(clBuildProgram(clProgram, vDevices.size(), vDevices.data(), strBuildOptions.c_str(), NULL, NULL)))
 		{
+			clReleaseProgram(clProgram);
+			clReleaseContext(clContext);
 			return 1;
 		}
 
@@ -360,6 +364,7 @@ int main(int argc, char **argv)
 		}
 
 		d.run();
+		clReleaseProgram(clProgram);
 		clReleaseContext(clContext);
 		return 0;
 	}
