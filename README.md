@@ -55,9 +55,17 @@ make
 
 ### 运行
 
-编译完成后，将 `dist/` 目录下的配置文件复制到 `profanity.exe` 同级目录，双击运行即可。
+编译完成后，将 `dist/` 目录下的文件复制到 `profanity.exe` 同级目录。
 
-也可以通过命令行运行：
+**方式一：交互式运行（推荐）**
+
+双击 `run.bat`，按提示输入前缀/后缀匹配位数和生成数量，结果自动保存到 `result/` 目录。
+
+**方式二：配置文件运行**
+
+复制 `profanity.conf.example` 为 `profanity.conf`，编辑参数后双击 `profanity.exe` 即可。
+
+**方式三：命令行运行**
 
 ```cmd
 profanity.exe --matching profanity.txt --suffix-count 6 --quit-count 10 -o result.txt
