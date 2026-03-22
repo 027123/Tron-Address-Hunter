@@ -335,6 +335,73 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
+		// Group devices by platform - OpenCL requires all devices in a context to be from the same platform
+		if (vDevices.size() > 1)
+		{
+			std::map<cl_platform_id, std::vector<cl_device_id>> platformDevices;
+			for (auto &dev : vDevices)
+			{
+				cl_platform_id platId;
+				clGetDeviceInfo(dev, CL_DEVICE_PLATFORM, sizeof(cl_platform_id), &platId, NULL);
+				platformDevices[platId].push_back(dev);
+			}
+
+			if (platformDevices.size() > 1)
+			{
+				// Find the platform with the most compute units (likely the discrete GPU)
+				cl_platform_id bestPlatform = platformDevices.begin()->first;
+				cl_uint bestComputeUnits = 0;
+				for (auto &pair : platformDevices)
+				{
+					cl_uint totalUnits = 0;
+					for (auto &dev : pair.second)
+					{
+						totalUnits += clGetWrapper<cl_uint>(clGetDeviceInfo, dev, CL_DEVICE_MAX_COMPUTE_UNITS);
+					}
+					if (totalUnits > bestComputeUnits)
+					{
+						bestComputeUnits = totalUnits;
+						bestPlatform = pair.first;
+					}
+				}
+
+				// Filter to only keep devices from the best platform
+				std::vector<cl_device_id> vFilteredDevices;
+				std::vector<std::string> vFilteredBinary;
+				std::vector<size_t> vFilteredBinarySize;
+				size_t binaryIdx = 0;
+				for (size_t i = 0; i < vDevices.size(); ++i)
+				{
+					cl_platform_id platId;
+					clGetDeviceInfo(vDevices[i], CL_DEVICE_PLATFORM, sizeof(cl_platform_id), &platId, NULL);
+					if (platId == bestPlatform)
+					{
+						vFilteredDevices.push_back(vDevices[i]);
+						if (binaryIdx < vDeviceBinary.size())
+						{
+							vFilteredBinary.push_back(vDeviceBinary[binaryIdx]);
+							vFilteredBinarySize.push_back(vDeviceBinarySize[binaryIdx]);
+						}
+					}
+					else
+					{
+						const auto skippedName = clGetWrapperString(clGetDeviceInfo, vDevices[i], CL_DEVICE_NAME);
+						std::cout << std::endl << "  Note: Skipping GPU-" << mDeviceIndex[vDevices[i]] << " (" << skippedName << ") - different OpenCL platform, cannot mix vendors in one context." << std::endl;
+						mDeviceIndex.erase(vDevices[i]);
+					}
+					if (i < vDeviceBinary.size()) binaryIdx++;
+				}
+				vDevices = vFilteredDevices;
+				vDeviceBinary = vFilteredBinary;
+				vDeviceBinarySize = vFilteredBinarySize;
+
+				if (vDevices.empty())
+				{
+					return 1;
+				}
+			}
+		}
+
 		std::cout << std::endl;
 		std::cout << "OpenCL:" << std::endl;
 		std::cout << "  Context creating ..." << std::flush;
