@@ -8,6 +8,8 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <ctime>
+#include <chrono>
 
 #if defined(__APPLE__) || defined(__MACOSX)
 #include <OpenCL/cl.h>
@@ -212,6 +214,23 @@ int main(int argc, char **argv)
 		{
 			std::cout << g_strHelp << std::endl;
 			return 0;
+		}
+
+		// Expand {date} placeholder in output filename to YYYYMMDD_HHMM
+		{
+			auto pos = outputFile.find("{date}");
+			if (pos != std::string::npos) {
+				auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+				struct tm tm_buf;
+#ifdef _WIN32
+				localtime_s(&tm_buf, &now);
+#else
+				localtime_r(&now, &tm_buf);
+#endif
+				char dateBuf[16];
+				std::strftime(dateBuf, sizeof(dateBuf), "%Y%m%d_%H%M", &tm_buf);
+				outputFile.replace(pos, 6, dateBuf);
+			}
 		}
 
 		if (matchingInput.empty())
