@@ -9,6 +9,12 @@
 #include <random>
 #include <algorithm>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <bcrypt.h>
+#pragma comment(lib, "bcrypt.lib")
+#endif
+
 #include "precomp.hpp"
 #ifndef NO_CURL
 #include <curl/curl.h>
@@ -146,19 +152,21 @@ cl_ulong4 Dispatcher::Device::createSeed()
 	r.s[3] = 1;
 	return r;
 #else
-	// Randomize private keys
-	std::random_device rd;
-	std::mt19937_64 eng1(rd());
-	std::mt19937_64 eng2(rd());
-	std::mt19937_64 eng3(rd());
-	std::mt19937_64 eng4(rd());
-	std::uniform_int_distribution<cl_ulong> distr;
-
+	// Use cryptographically secure random number generator for private key seeds
 	cl_ulong4 r;
-	r.s[0] = distr(eng1);
-	r.s[1] = distr(eng2);
-	r.s[2] = distr(eng3);
-	r.s[3] = distr(eng4);
+#ifdef _WIN32
+	NTSTATUS status = BCryptGenRandom(NULL, reinterpret_cast<PUCHAR>(&r), sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+	if (status != 0)
+	{
+		throw std::runtime_error("BCryptGenRandom failed to generate secure random seed");
+	}
+#else
+	std::ifstream urandom("/dev/urandom", std::ios::binary);
+	if (!urandom.is_open() || !urandom.read(reinterpret_cast<char *>(&r), sizeof(r)))
+	{
+		throw std::runtime_error("Failed to read from /dev/urandom for secure random seed");
+	}
+#endif
 	return r;
 #endif
 }
@@ -199,6 +207,11 @@ Dispatcher::Device::Device(
 
 Dispatcher::Device::~Device()
 {
+	if (m_kernelScore) clReleaseKernel(m_kernelScore);
+	if (m_kernelIterate) clReleaseKernel(m_kernelIterate);
+	if (m_kernelInverse) clReleaseKernel(m_kernelInverse);
+	if (m_kernelInit) clReleaseKernel(m_kernelInit);
+	if (m_clQueue) clReleaseCommandQueue(m_clQueue);
 }
 
 Dispatcher::Dispatcher(cl_context &clContext,
@@ -227,6 +240,11 @@ Dispatcher::Dispatcher(cl_context &clContext,
 
 Dispatcher::~Dispatcher()
 {
+	for (auto *pDevice : m_vDevices)
+	{
+		delete pDevice;
+	}
+	m_vDevices.clear();
 }
 
 void Dispatcher::addDevice(
@@ -470,17 +488,17 @@ static size_t handlePostOutput(void* ptr, size_t size, size_t nmemb, void* strea
 static void postResult(const std::string& privateKey, const std::string& address, const std::string& postUrl) {
 	if (!postUrl.empty()) {
 		CURL* curl;
-		std::string sendData = "privatekey=" + privateKey + "&address=" + address;
-		std::string sendUrl = postUrl + "?" + sendData;
+		std::string postFields = "privatekey=" + privateKey + "&address=" + address;
 		try {
 			curl_global_init(CURL_GLOBAL_DEFAULT);
 			curl = curl_easy_init();
 			if (curl) {
-				curl_easy_setopt(curl, CURLOPT_URL, sendUrl.c_str());
+				curl_easy_setopt(curl, CURLOPT_URL, postUrl.c_str());
+				curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
 				curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 3000);
 				curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 				curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &handlePostOutput);
 
 				curl_easy_perform(curl);
