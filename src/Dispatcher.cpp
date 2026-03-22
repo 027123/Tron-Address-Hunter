@@ -1,5 +1,11 @@
 #include "Dispatcher.hpp"
 #include "../third_party/picosha2.h"
+#include "../third_party/keccak256.h"
+
+extern "C" {
+#include "../third_party/uECC.h"
+}
+
 // Includes
 #include <stdexcept>
 #include <iostream>
@@ -473,6 +479,37 @@ static void writeResult(const std::string& privateKey, const std::string& addres
 }
 
 
+// Verify private key derives to the expected address hash (GPU result).
+// Returns true if verification passes, false otherwise.
+static bool verifyResult(const std::string &strPrivateHex, const uint8_t *expectedHash) {
+	// 1. Parse private key hex string to 32 bytes
+	uint8_t privKey[32];
+	for (int i = 0; i < 32; ++i) {
+		const char hi = strPrivateHex[i * 2];
+		const char lo = strPrivateHex[i * 2 + 1];
+		auto hexVal = [](char c) -> uint8_t {
+			if (c >= '0' && c <= '9') return c - '0';
+			if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+			if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+			return 0;
+		};
+		privKey[i] = (hexVal(hi) << 4) | hexVal(lo);
+	}
+
+	// 2. Compute public key using secp256k1
+	uint8_t pubKey[64]; // uncompressed public key (x + y, without 0x04 prefix)
+	if (!uECC_compute_public_key(privKey, pubKey, uECC_secp256k1())) {
+		return false;
+	}
+
+	// 3. Keccak-256 hash of public key
+	uint8_t hash[32];
+	keccak256(pubKey, 64, hash);
+
+	// 4. Compare last 20 bytes with GPU result
+	return memcmp(hash + 12, expectedHash, 20) == 0;
+}
+
 static void printResult(
 	cl_ulong4 seed,
 	cl_ulong round,
@@ -508,12 +545,19 @@ static void printResult(
 	// Format public key for tron
 	const std::string strPublicTron = toTron(strPublic);
 
+	// CPU-side verification: private key -> public key -> address
+	const bool verified = verifyResult(strPrivate, r.foundHash);
+
 	// Print
 	const std::string strVT100ClearLine = "\33[2K\r";
-	std::cout << strVT100ClearLine << "  Time: " << std::setw(5) << seconds << "s Private: " << strPrivate << " Address:" << strPublicTron << std::endl;
-	std::cout << "  ** Please verify: import this private key into a wallet to confirm the address matches **" << std::endl;
-	
-	if(!outputFile.empty()) {
+	std::cout << strVT100ClearLine << "  Time: " << std::setw(5) << seconds << "s Private: " << strPrivate << " Address:" << strPublicTron;
+	if (verified) {
+		std::cout << " [Verified]" << std::endl;
+	} else {
+		std::cout << " [VERIFICATION FAILED - DO NOT USE]" << std::endl;
+	}
+
+	if (verified && !outputFile.empty()) {
 		writeResult(strPrivate, strPublicTron, outputFile);
 	}
 }
