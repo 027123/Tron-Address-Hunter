@@ -172,10 +172,10 @@ int main(int argc, char **argv)
 		std::string matchingInput;
 		std::string outputFile;
 		std::vector<size_t> vDeviceSkipIndex;
-		size_t worksizeLocal = 64;
+		size_t worksizeLocal = 128;
 		size_t worksizeMax = 0;
 		bool bNoCache = false;
-		size_t inverseSize = 255;
+		size_t inverseSize = 128;
 		size_t inverseMultiple = 32768;
 		size_t prefixCount = 0;
 		size_t suffixCount = 6;
