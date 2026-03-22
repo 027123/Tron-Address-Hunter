@@ -3,21 +3,28 @@ title Build Tron Address Hunter
 
 :: Auto-detect Visual Studio environment
 where cl >nul 2>&1
-if %errorlevel% neq 0 (
-    echo cl.exe not found, searching for Visual Studio...
-    if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" (
-        call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-    ) else if exist "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" (
-        call "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
-    ) else if exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat" (
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
-    ) else (
-        echo Error: Visual Studio not found. Please run from "x64 Native Tools Command Prompt".
-        pause
-        exit /b 1
+if %errorlevel% equ 0 goto :compile
+
+echo cl.exe not found, searching for Visual Studio...
+
+:: Use vswhere.exe to find any installed VS (Community, Professional, Enterprise, BuildTools)
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if exist "%VSWHERE%" (
+    for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
+        if exist "%%i\VC\Auxiliary\Build\vcvars64.bat" (
+            echo Found Visual Studio at: %%i
+            call "%%i\VC\Auxiliary\Build\vcvars64.bat"
+            goto :compile
+        )
     )
 )
 
+echo Error: Visual Studio with C++ tools not found.
+echo Please run from "x64 Native Tools Command Prompt" or install Visual Studio with C++ workload.
+pause
+exit /b 1
+
+:compile
 echo.
 echo Compiling...
 cl /O2 /EHsc /std:c++17 /I "OpenCL/include" Dispatcher.cpp Mode.cpp precomp.cpp profanity.cpp SpeedSample.cpp /link /OUT:profanity.exe "OpenCL/lib/OpenCL.lib" ws2_32.lib advapi32.lib
