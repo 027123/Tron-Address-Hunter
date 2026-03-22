@@ -233,6 +233,7 @@ Dispatcher::Dispatcher(cl_context &clContext,
 	  m_clScoreQuit(clScoreQuit),
 	  m_outputFile(outputFile),
 	  m_eventFinished(NULL),
+	  m_lastPrintTime(std::chrono::steady_clock::now()),
 	  m_countPrint(0)
 {
 }
@@ -628,6 +629,15 @@ void Dispatcher::printSpeed()
 	++m_countPrint;
 	if (m_countPrint > m_vDevices.size())
 	{
+		// Throttle display to at most once per second
+		const auto now = std::chrono::steady_clock::now();
+		const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastPrintTime).count();
+		if (elapsed < 1000)
+		{
+			return;
+		}
+		m_lastPrintTime = now;
+
 		std::string strGPUs;
 		double speedTotal = 0;
 		unsigned int i = 0;

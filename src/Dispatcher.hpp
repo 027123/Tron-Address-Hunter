@@ -121,6 +121,7 @@ class Dispatcher {
 		// Run information
 		std::mutex m_mutex;
 		std::chrono::time_point<std::chrono::steady_clock> timeStart;
+		std::chrono::time_point<std::chrono::steady_clock> m_lastPrintTime;
 		unsigned int m_countPrint;
 		unsigned int m_countRunning;
 		size_t m_sizeInitTotal;
