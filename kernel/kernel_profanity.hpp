@@ -37,6 +37,9 @@ mp_word mp_sub(mp_number * const r, const mp_number * const a, const mp_number *
 }
 
 mp_word mp_sub_mod(mp_number * const r) {
+	/* Local copy — compiler promotes to registers for fast inner-loop access.
+	 * Using the global __constant mod here causes load stalls on the critical path. */
+	mp_number mod = { {0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
 	mp_word t, c = 0;
 	for (mp_word i = 0; i < MP_WORDS; ++i) {
 		t = r->d[i] - mod.d[i] - c;
@@ -199,6 +202,11 @@ mp_word mp_mul_word_add_extra(mp_number * const r, const mp_number * const a, co
 }
 
 void mp_mul_mod_word_sub(mp_number * const r, const mp_word w, const bool withModHigher) {
+	/* Local copies — compiler promotes to registers/immediates, avoiding
+	 * constant memory load latency in this heavily called function. */
+	mp_number mod = { { 0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
+	mp_number modhigher = { {0x00000000, 0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
+
 	mp_word cM = 0;
 	mp_word cS = 0;
 	mp_word tS = 0;
