@@ -10,6 +10,7 @@
 #include <set>
 #include <ctime>
 #include <chrono>
+#include <filesystem>
 
 #if defined(__APPLE__) || defined(__MACOSX)
 #include <OpenCL/cl.h>
@@ -230,6 +231,21 @@ int main(int argc, char **argv)
 				char dateBuf[16];
 				std::strftime(dateBuf, sizeof(dateBuf), "%Y%m%d_%H%M", &tm_buf);
 				outputFile.replace(pos, 6, dateBuf);
+			}
+		}
+
+		// Auto-create output directory if it doesn't exist
+		if (!outputFile.empty()) {
+			std::filesystem::path outPath(outputFile);
+			auto parentDir = outPath.parent_path();
+			if (!parentDir.empty() && !std::filesystem::exists(parentDir)) {
+				std::error_code ec;
+				std::filesystem::create_directories(parentDir, ec);
+				if (ec) {
+					std::cout << "error: failed to create output directory '" << parentDir.string() << "': " << ec.message() << std::endl;
+					return 1;
+				}
+				std::cout << "  Created output directory: " << parentDir.string() << std::endl;
 			}
 		}
 

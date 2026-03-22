@@ -21,7 +21,7 @@ double SpeedSample::getSpeed() const {
 			speed += v;
 		}
 
-		return speed / m_lSpeeds.size();
+		return m_lSpeeds.empty() ? 0 : speed / m_lSpeeds.size();
 	}
 }
 
