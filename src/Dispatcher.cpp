@@ -284,6 +284,14 @@ void Dispatcher::run()
 	clWaitForEvents(1, &m_eventFinished);
 	clReleaseEvent(m_eventFinished);
 	m_eventFinished = NULL;
+
+	// Print final speed summary to stdout (parseable by benchmark scripts)
+	double speedTotal = 0;
+	for (auto &e : m_vDevices)
+	{
+		speedTotal += e->m_speed.getSpeed();
+	}
+	std::cout << std::endl << "Speed: " << std::fixed << std::setprecision(3) << (speedTotal / 1e6) << " MH/s" << std::endl;
 }
 
 void Dispatcher::init()
