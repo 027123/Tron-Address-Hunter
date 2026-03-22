@@ -21,10 +21,6 @@ __constant const mp_number doubleNegativeGy = { {0x09de52bf, 0xc7705edf, 0xb2f55
 
 __constant const mp_number negativeGy       = { {0x04ef2777, 0x63b82f6f, 0x597aabe6, 0x02e84bb7, 0xf1eef757, 0xa25b0403, 0xd95c3b9a, 0xb7c52588 } };
 
-__constant const mp_number modhigher        = { {0x00000000, 0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
-
-__constant const mp_number negativeGx       = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
-
 mp_word mp_sub(mp_number * const r, const mp_number * const a, const mp_number * const b) {
 	mp_word t, c = 0;
 	for (mp_word i = 0; i < MP_WORDS; ++i) {
@@ -37,8 +33,6 @@ mp_word mp_sub(mp_number * const r, const mp_number * const a, const mp_number *
 }
 
 mp_word mp_sub_mod(mp_number * const r) {
-	/* Local copy — compiler promotes to registers for fast inner-loop access.
-	 * Using the global __constant mod here causes load stalls on the critical path. */
 	mp_number mod = { {0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
 	mp_word t, c = 0;
 	for (mp_word i = 0; i < MP_WORDS; ++i) {
@@ -202,8 +196,6 @@ mp_word mp_mul_word_add_extra(mp_number * const r, const mp_number * const a, co
 }
 
 void mp_mul_mod_word_sub(mp_number * const r, const mp_word w, const bool withModHigher) {
-	/* Local copies — compiler promotes to registers/immediates, avoiding
-	 * constant memory load latency in this heavily called function. */
 	mp_number mod = { { 0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
 	mp_number modhigher = { {0x00000000, 0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
 
@@ -375,6 +367,8 @@ __kernel void profanity_init(__global const point * const precomp, __global mp_n
 __kernel void profanity_inverse(__global const mp_number * const pDeltaX, __global mp_number * const pInverse) {
 	const size_t id = get_global_id(0) * PROFANITY_INVERSE_SIZE;
 
+	mp_number negativeDoubleGy = { {0x09de52bf, 0xc7705edf, 0xb2f557cc, 0x05d0976e, 0xe3ddeeae, 0x44b60807, 0xb2b87735, 0x6f8a4b11 } };
+
 	mp_number copy1, copy2;
 	mp_number buffer[PROFANITY_INVERSE_SIZE];
 	mp_number buffer2[PROFANITY_INVERSE_SIZE];
@@ -387,8 +381,7 @@ __kernel void profanity_inverse(__global const mp_number * const pDeltaX, __glob
 
 	copy1 = buffer[PROFANITY_INVERSE_SIZE - 1];
 	mp_mod_inverse(&copy1);
-	mp_number localDoubleNegGy = doubleNegativeGy;
-	mp_mod_mul(&copy1, &copy1, &localDoubleNegGy);
+	mp_mod_mul(&copy1, &copy1, &negativeDoubleGy);
 
 	for (uint i = PROFANITY_INVERSE_SIZE - 1; i > 0; --i) {
 		mp_mod_mul(&copy2, &copy1, &buffer[i - 1]);
@@ -413,6 +406,8 @@ __kernel void profanity_iterate_score(
 {
 	const size_t id = get_global_id(0);
 
+	mp_number negativeGx = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
+
 	ethhash h = { { 0 } };
 
 	mp_number dX = pDeltaX[id];
@@ -432,8 +427,7 @@ __kernel void profanity_iterate_score(
 	mp_mod_mul(&tmp, &lambda, &dX);
 	mp_mod_sub_const(&tmp, &negativeGy, &tmp);
 
-	mp_number localNegGx = negativeGx;
-	mp_mod_sub(&dX, &dX, &localNegGx);
+	mp_mod_sub(&dX, &dX, &negativeGx);
 
 	h.d[0] = bswap32(dX.d[MP_WORDS - 1]);
 	h.d[1] = bswap32(dX.d[MP_WORDS - 2]);
@@ -472,22 +466,20 @@ __kernel void profanity_iterate_score(
 	/* Match directly against tron_addr -- no intermediate copy needed.
 	 * Prefix positions [0..9]  -> tron_addr[0..9]   (data index 0..9)
 	 * Suffix positions [10..19] -> tron_addr[24..33] (data index 10..19)
-	 * Mapping: data index i in [10,19] -> tron_addr[i + 14]
-	 *
-	 * Inner loops use branchless accumulation instead of early break
-	 * to avoid warp divergence -- all threads execute the same number
-	 * of iterations regardless of match outcome. */
+	 * Mapping: data index i in [10,19] -> tron_addr[i + 14] */
 	for(uint j = 0; j < matchingCount; j++) {
 		const uint base = j * 20;
 		uint scorePrefix = 1;
 		uint scoreSuffix = 0;
 
 		if(prefixCount > 1) {
-			uint ok = 1;
 			for (uint i = 1; i < 10; ++i) {
 				const uint di = base + i;
-				ok &= (data1[di] > 0) & ((tron_addr[i] & data1[di]) == data2[di]);
-				scorePrefix += ok;
+				if (data1[di] > 0 && (tron_addr[i] & data1[di]) == data2[di]) {
+					++scorePrefix;
+				} else {
+					break;
+				}
 			}
 			if (scorePrefix < prefixCount) {
 				continue;
@@ -495,11 +487,13 @@ __kernel void profanity_iterate_score(
 		}
 
 		if(suffixCount > 0) {
-			uint ok = 1;
 			for (uint i = 19; i > 10; --i) {
 				const uint di = base + i;
-				ok &= (data1[di] > 0) & ((tron_addr[i + 14] & data1[di]) == data2[di]);
-				scoreSuffix += ok;
+				if (data1[di] > 0 && (tron_addr[i + 14] & data1[di]) == data2[di]) {
+					++scoreSuffix;
+				} else {
+					break;
+				}
 			}
 		}
 

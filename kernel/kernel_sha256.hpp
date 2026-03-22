@@ -164,101 +164,30 @@ void sha256_32(const uchar *key, uchar *output) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Fused double-SHA256 for TRON checksum.                              */
-/* Computes SHA256(SHA256(input_21_bytes)) keeping intermediate hash   */
-/* in registers (W[0..7]) instead of serializing to a byte array.     */
-/* Eliminates 64 bytes of intermediate private memory (hash1 + hash2) */
-/* and ~64 byte-level load/store operations between the two rounds.   */
-/* Only the first 4 bytes of the final hash are output (checksum).    */
-/* ------------------------------------------------------------------ */
-void sha256_21_to_checksum(const uchar *input, uchar *checksum) {
-  uint W[16];
-
-  /* === Round 1: SHA-256 of 21-byte input === */
-  W[0]  = ((uint)input[0]  << 24) | ((uint)input[1]  << 16) | ((uint)input[2]  << 8) | (uint)input[3];
-  W[1]  = ((uint)input[4]  << 24) | ((uint)input[5]  << 16) | ((uint)input[6]  << 8) | (uint)input[7];
-  W[2]  = ((uint)input[8]  << 24) | ((uint)input[9]  << 16) | ((uint)input[10] << 8) | (uint)input[11];
-  W[3]  = ((uint)input[12] << 24) | ((uint)input[13] << 16) | ((uint)input[14] << 8) | (uint)input[15];
-  W[4]  = ((uint)input[16] << 24) | ((uint)input[17] << 16) | ((uint)input[18] << 8) | (uint)input[19];
-  W[5]  = ((uint)input[20] << 24) | 0x00800000u;
-  W[6]  = 0; W[7]  = 0; W[8]  = 0; W[9]  = 0;
-  W[10] = 0; W[11] = 0; W[12] = 0; W[13] = 0;
-  W[14] = 0;
-  W[15] = 168u;  /* 21 * 8 */
-
-  uint A = SHA256_H0, B = SHA256_H1, C = SHA256_H2, D = SHA256_H3;
-  uint E = SHA256_H4, F = SHA256_H5, G = SHA256_H6, H = SHA256_H7;
-  uint T1, T2;
-
-#pragma unroll
-  for (int i = 0; i < 16; i++) {
-    T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i];
-    T2 = sha_csig0(A) + sha_maj(A, B, C);
-    H = G; G = F; F = E; E = D + T1;
-    D = C; C = B; B = A; A = T1 + T2;
-  }
-
-#pragma unroll
-  for (int i = 16; i < 64; i++) {
-    W[i & 15] += sha_sig1(W[(i - 2) & 15]) + W[(i - 7) & 15] + sha_sig0(W[(i - 15) & 15]);
-    T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i & 15];
-    T2 = sha_csig0(A) + sha_maj(A, B, C);
-    H = G; G = F; F = E; E = D + T1;
-    D = C; C = B; B = A; A = T1 + T2;
-  }
-
-  /* First hash stays in W[0..7] -- no byte serialization needed */
-  W[0] = A + SHA256_H0; W[1] = B + SHA256_H1;
-  W[2] = C + SHA256_H2; W[3] = D + SHA256_H3;
-  W[4] = E + SHA256_H4; W[5] = F + SHA256_H5;
-  W[6] = G + SHA256_H6; W[7] = H + SHA256_H7;
-
-  /* === Round 2: SHA-256 of 32-byte first hash (already in W[0..7]) === */
-  W[8] = 0x80000000u;
-  W[9]  = 0; W[10] = 0; W[11] = 0; W[12] = 0;
-  W[13] = 0; W[14] = 0;
-  W[15] = 256u;  /* 32 * 8 */
-
-  A = SHA256_H0; B = SHA256_H1; C = SHA256_H2; D = SHA256_H3;
-  E = SHA256_H4; F = SHA256_H5; G = SHA256_H6; H = SHA256_H7;
-
-#pragma unroll
-  for (int i = 0; i < 16; i++) {
-    T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i];
-    T2 = sha_csig0(A) + sha_maj(A, B, C);
-    H = G; G = F; F = E; E = D + T1;
-    D = C; C = B; B = A; A = T1 + T2;
-  }
-
-#pragma unroll
-  for (int i = 16; i < 64; i++) {
-    W[i & 15] += sha_sig1(W[(i - 2) & 15]) + W[(i - 7) & 15] + sha_sig0(W[(i - 15) & 15]);
-    T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i & 15];
-    T2 = sha_csig0(A) + sha_maj(A, B, C);
-    H = G; G = F; F = E; E = D + T1;
-    D = C; C = B; B = A; A = T1 + T2;
-  }
-
-  /* Only the first 4 bytes (checksum) are needed */
-  uint h0 = A + SHA256_H0;
-  checksum[0] = (h0 >> 24) & 0xFF;
-  checksum[1] = (h0 >> 16) & 0xFF;
-  checksum[2] = (h0 >> 8)  & 0xFF;
-  checksum[3] =  h0        & 0xFF;
-}
-
-/* ------------------------------------------------------------------ */
 /* Optimized TRON address hash conversion.                             */
-/* Writes payload directly to tronhash, then appends 4-byte checksum  */
-/* via fused double-SHA256.  Saves 85 bytes of private memory vs.     */
-/* the unfused version (hash0[21] + hash1[32] + hash2[32]).           */
+/* Uses specialized SHA256 variants to avoid branches and reduce       */
+/* register pressure (W[64] instead of W[80], K from __constant).     */
 /* ------------------------------------------------------------------ */
 void ethhash_to_tronhash(const uchar *ethhash, uchar *tronhash) {
-  tronhash[0] = 65;  /* 0x41 -- TRON network prefix */
+  uchar hash0[21];
+  uchar hash1[32];
+  uchar hash2[32];
+
+  hash0[0] = 65;  /* 0x41 -- TRON network prefix */
   for (uint i = 0; i < 20; i++) {
-    tronhash[i + 1] = ethhash[i];
+    hash0[i + 1] = ethhash[i];
   }
-  sha256_21_to_checksum(tronhash, tronhash + 21);
+
+  sha256_21(hash0, hash1);
+  sha256_32(hash1, hash2);
+
+  for (uint i = 0; i < 21; i++) {
+    tronhash[i] = hash0[i];
+  }
+  tronhash[21] = hash2[0];
+  tronhash[22] = hash2[1];
+  tronhash[23] = hash2[2];
+  tronhash[24] = hash2[3];
 }
 
 __constant char alphabet[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
