@@ -209,25 +209,15 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		if (prefixCount < 0)
-		{
-			prefixCount = 0;
-		}
-
 		if (prefixCount > 10)
 		{
-			std::cout << "error: the number of prefix matches cannot be greater than 10 :<" << std::endl;
+			std::cout << "error: prefix-count must be 0-10, got " << prefixCount << std::endl;
 			return 1;
-		}
-
-		if (suffixCount < 0)
-		{
-			suffixCount = 6;
 		}
 
 		if (suffixCount > 10)
 		{
-			std::cout << "error: the number of suffix matches cannot be greater than 10 :<" << std::endl;
+			std::cout << "error: suffix-count must be 0-10, got " << suffixCount << std::endl;
 			return 1;
 		}
 

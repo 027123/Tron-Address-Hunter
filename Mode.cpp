@@ -1,5 +1,6 @@
 #include "Mode.hpp"
 #include <stdexcept>
+#include <cstring>
 
 #include <iostream>
 #include <sstream>
@@ -32,10 +33,16 @@ Mode Mode::matching(std::string matchingInput) {
 		std::ifstream file(matchingInput);
 		if (file.is_open()) {
 			std::string line;
+			size_t lineNumber = 0;
+			size_t skippedCount = 0;
 			while (std::getline(file, line)) {
+				++lineNumber;
 				// Remove trailing \r from Windows line endings
 				if (!line.empty() && line.back() == '\r') {
 					line.pop_back();
+				}
+				if (line.empty()) {
+					continue;
 				}
 				std::stringstream ss;
 				if(line.size() == 20 || line.size() == 34) {
@@ -46,10 +53,18 @@ Mode Mode::matching(std::string matchingInput) {
 						ss << std::hex << int(item);
 					}
 					matchingList.push_back(ss.str());
+				} else {
+					++skippedCount;
+					std::cout << "  warning: line " << lineNumber << " skipped (length " << line.size() << ", expected 20 or 34): " << line << std::endl;
 				}
 			}
+			std::cout << "  Loaded " << matchingList.size() << " matching pattern(s) from " << matchingInput;
+			if (skippedCount > 0) {
+				std::cout << " (" << skippedCount << " invalid line(s) skipped)";
+			}
+			std::cout << std::endl;
 		} else {
-			std::cout << "error: Failed to open matching file. :<" << std::endl;
+			std::cout << "error: Failed to open matching file '" << matchingInput << "': " << strerror(errno) << std::endl;
 		}
 	}
 	

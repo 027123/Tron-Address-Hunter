@@ -18,10 +18,10 @@ double SpeedSample::getSpeed() const {
 	} else {
 		double speed = 0;
 		for (auto & v : m_lSpeeds) {
-			speed += v / m_lSpeeds.size();
+			speed += v;
 		}
 
-		return speed;
+		return speed / m_lSpeeds.size();
 	}
 }
 
