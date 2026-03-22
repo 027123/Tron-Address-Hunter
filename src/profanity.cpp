@@ -24,9 +24,9 @@
 #include "ArgParser.hpp"
 #include "Mode.hpp"
 #include "help.hpp"
-#include "kernel_profanity.hpp"
-#include "kernel_sha256.hpp"
-#include "kernel_keccak.hpp"
+#include "../kernel/kernel_profanity.hpp"
+#include "../kernel/kernel_sha256.hpp"
+#include "../kernel/kernel_keccak.hpp"
 
 std::string readFile(const char *const szFilename)
 {

@@ -1,5 +1,5 @@
 #include "Dispatcher.hpp"
-#include "picosha2.h"
+#include "../third_party/picosha2.h"
 // Includes
 #include <stdexcept>
 #include <iostream>

@@ -2,64 +2,76 @@
 
 ![](https://img.shields.io/badge/baseon-gpu-yellowgreen.svg)
 ![](https://img.shields.io/badge/language-c,c++-orange.svg)
-![](https://img.shields.io/badge/platform-windows-yellow.svg)
+![](https://img.shields.io/badge/platform-windows,linux,macos-yellow.svg)
 
 基于 GPU 加速的波场（TRON）靓号地址生成器。基于 [profanity-tron](https://github.com/GG4mida/profanity-tron) 修改，已修复原版私钥可爆破漏洞。
 
 > **安全提示**：生成的地址建议进行多签后再使用，可保证 100% 安全。
 
+## 项目结构
+
+```
+├── src/                # 项目源码
+├── kernel/             # OpenCL GPU kernel 代码
+├── third_party/        # 第三方库 (picosha2, uECC)
+├── OpenCL/             # OpenCL SDK (Windows)
+├── Makefile            # Linux/macOS 编译
+├── build.bat           # Windows 编译
+├── profanity.conf.example  # 配置文件示例
+└── profanity.txt       # 匹配字典
+```
+
 ## 快速开始
-
-### 直接运行
-
-将以下文件放在同一目录，双击 `run.bat` 即可：
-
-```
-├── profanity.exe      # 编译后的可执行程序
-├── profanity.txt      # 匹配字典
-└── run.bat            # 启动脚本（交互式）
-```
-
-`run.bat` 启动后会提示输入：
-- **前缀匹配位数**（默认 0，不匹配）
-- **后缀匹配位数**（默认 6，可选 4-12）
-- **生成地址数量**（默认 1，可选 1-10000）
-
-结果自动保存到 `result/result-YYYYMMDD-HHMMSS.txt`，格式为 `privatekey,address`，每找到一个地址实时写入。
 
 ### 编译（Windows）
 
 **环境要求**：
 - NVIDIA 显卡 + 驱动
-- Visual Studio 2019/2022（需安装 C++ 桌面开发组件）
+- Visual Studio（需安装 C++ 桌面开发组件）
 
-**编译方式一**：双击 `build.bat`（自动查找 VS 环境）
+**编译**：双击 `build.bat`（自动查找 VS 环境）
 
-**编译方式二**：打开 "x64 Native Tools Command Prompt"，手动执行：
+### 编译（Linux/macOS）
+
+```bash
+make
+```
+
+### 运行
 
 ```cmd
-cl /O2 /EHsc /std:c++17 /DNO_CURL /I "OpenCL/include" Dispatcher.cpp Mode.cpp precomp.cpp profanity.cpp SpeedSample.cpp /link /OUT:profanity.exe "OpenCL/lib/OpenCL.lib" ws2_32.lib advapi32.lib
+./profanity.x64 --matching profanity.txt --suffix-count 6 --quit-count 10 -o result.txt
 ```
 
 ## 命令参数
 
 ```
-profanity.exe [OPTIONS]
+profanity [OPTIONS]
 
-  --matching        匹配规则，文件或单个地址
-  --prefix-count    最少匹配前缀位数，默认 0
-  --suffix-count    最少匹配后缀位数，默认 6
-  --quit-count      生成指定数量后退出，默认 0（不退出）
-  --skip            跳过指定索引的 GPU 设备（集成显卡报错时使用）
-  --output          结果输出到文件（追加写入）
-  --post            结果发送到指定 URL
+  --help              显示帮助信息
+  --config            指定配置文件路径（默认: profanity.conf）
+  --matching          匹配规则，文件或单个地址
+  --prefix-count      最少匹配前缀位数，默认 0
+  --suffix-count      最少匹配后缀位数，默认 6
+  --quit-count        生成指定数量后退出，默认 0（不退出）
+  --skip              跳过指定索引的 GPU 设备
+  --output            结果输出到文件（追加写入）
 ```
 
-**示例**：
+## 配置文件
 
-```cmd
-profanity.exe --matching profanity.txt --suffix-count 6 --quit-count 10 --skip 1 -o result.txt
+支持通过配置文件设置参数，避免每次输入长命令。复制 `profanity.conf.example` 为 `profanity.conf`：
+
+```ini
+# 匹配规则文件
+matching=profanity.txt
+# 后缀匹配位数
+suffix-count=6
+# 结果输出文件
+output=result.txt
 ```
+
+命令行参数优先于配置文件。
 
 ## 匹配规则
 
@@ -69,7 +81,6 @@ profanity.exe --matching profanity.txt --suffix-count 6 --quit-count 10 --skip 1
 ```
 TTTTTTTTTTZZZZZZZZZZ
 ```
-匹配以 Z 结尾的地址。前缀部分 T 为通配符，后缀从末尾开始匹配。
 
 **34 字符完整地址**：
 ```
@@ -79,7 +90,7 @@ TUqEg3dzVEJNQSVW2HY98z5X8SBdhmao8D
 
 ## 验证
 
-生成的私钥和地址务必验证匹配：[https://secretscan.org/PrivateKeyTron](https://secretscan.org/PrivateKeyTron)
+生成的私钥和地址务必导入钱包（如 TronLink）验证地址匹配后再使用。
 
 ## 致谢
 
