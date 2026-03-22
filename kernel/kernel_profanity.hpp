@@ -392,10 +392,17 @@ __kernel void profanity_inverse(__global const mp_number * const pDeltaX, __glob
 	pInverse[id] = copy1;
 }
 
-__kernel void profanity_iterate(
-	__global mp_number * const pDeltaX, 
-	__global mp_number * const pInverse, 
-	__global mp_number * const pPrevLambda) 
+__kernel void profanity_iterate_score(
+	__global mp_number * const pDeltaX,
+	__global mp_number * const pInverse,
+	__global mp_number * const pPrevLambda,
+	__global result * const pResult,
+	__constant const uchar * const data1,
+	__constant const uchar * const data2,
+	const uchar scoreMax,
+	const uchar matchingCount,
+	const uchar prefixCount,
+	const uchar suffixCount)
 {
 	const size_t id = get_global_id(0);
 
@@ -442,44 +449,17 @@ __kernel void profanity_iterate(
 
 	sha3_keccakf(&h);
 
-	pInverse[id].d[0] = h.d[3];
-	pInverse[id].d[1] = h.d[4];
-	pInverse[id].d[2] = h.d[5];
-	pInverse[id].d[3] = h.d[6];
-	pInverse[id].d[4] = h.d[7];
-}
-
-void profanity_result_update(
-	const size_t id, 
-	__global const uchar * const hash, 
-	__global result * const pResult, 
-	const uchar scoreMax) 
-{
-	uchar score = scoreMax + 1;
-	uchar hasResult = atomic_inc(&pResult[score].found); 
-	if (hasResult == 0) {
-		pResult[score].foundId = id;
-		for (int i = 0; i < 20; ++i) {
-			pResult[score].foundHash[i] = hash[i];
-		}
+	/* Extract 20-byte keccak hash to private memory.
+	 * This eliminates the global memory round-trip that the old
+	 * separate score kernel required, and frees the 200-byte
+	 * keccak state for register reuse by SHA-256 below. */
+	uchar keccak_hash[20];
+	for (int i = 0; i < 20; ++i) {
+		keccak_hash[i] = h.b[12 + i];
 	}
-}
-
-__kernel void profanity_score_matching(
-	__global mp_number * const pInverse,
-	__global result * const pResult,
-	__constant const uchar * const data1,
-	__constant const uchar * const data2,
-	const uchar scoreMax,
-	const uchar matchingCount,
-	const uchar prefixCount,
-	const uchar suffixCount)
-{
-	const size_t id = get_global_id(0);
-	__global const uchar * hash = pInverse[id].d;
 
 	uchar tron_hash[25];
-	ethhash_to_tronhash(hash, tron_hash);
+	ethhash_to_tronhash(keccak_hash, tron_hash);
 	char tron_addr[34];
 	base58_encode(tron_hash, tron_addr, 25);
 
@@ -501,7 +481,6 @@ __kernel void profanity_score_matching(
 					break;
 				}
 			}
-			/* Early exit: prefix cannot match, skip suffix check */
 			if (scorePrefix < prefixCount) {
 				continue;
 			}
@@ -519,7 +498,14 @@ __kernel void profanity_score_matching(
 		}
 
 		if(scorePrefix >= prefixCount && scoreSuffix >= suffixCount){
-			profanity_result_update(id, hash, pResult, scoreMax);
+			uchar score = scoreMax + 1;
+			uchar hasResult = atomic_inc(&pResult[score].found);
+			if (hasResult == 0) {
+				pResult[score].foundId = id;
+				for (int i = 0; i < 20; ++i) {
+					pResult[score].foundHash[i] = keccak_hash[i];
+				}
+			}
 			break;
 		}
 	}

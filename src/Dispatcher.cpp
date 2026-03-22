@@ -191,8 +191,7 @@ Dispatcher::Device::Device(
 	  m_clQueue(createQueue(clContext, clDeviceId)),
 	  m_kernelInit(createKernel(clProgram, "profanity_init")),
 	  m_kernelInverse(createKernel(clProgram, "profanity_inverse")),
-	  m_kernelIterate(createKernel(clProgram, "profanity_iterate")),
-	  m_kernelScore(createKernel(clProgram, "profanity_score_matching")),
+	  m_kernelIterateScore(createKernel(clProgram, "profanity_iterate_score")),
 	  m_memPrecomp(clContext, m_clQueue, CL_MEM_READ_ONLY | CL_MEM_HOST_WRITE_ONLY, sizeof(g_precomp), g_precomp),
 	  m_memPointsDeltaX(clContext, m_clQueue, CL_MEM_READ_WRITE | CL_MEM_HOST_NO_ACCESS, size, true),
 	  m_memInversedNegativeDoubleGy(clContext, m_clQueue, CL_MEM_READ_WRITE | CL_MEM_HOST_NO_ACCESS, size, true),
@@ -210,8 +209,7 @@ Dispatcher::Device::Device(
 
 Dispatcher::Device::~Device()
 {
-	if (m_kernelScore) clReleaseKernel(m_kernelScore);
-	if (m_kernelIterate) clReleaseKernel(m_kernelIterate);
+	if (m_kernelIterateScore) clReleaseKernel(m_kernelIterateScore);
 	if (m_kernelInverse) clReleaseKernel(m_kernelInverse);
 	if (m_kernelInit) clReleaseKernel(m_kernelInit);
 	if (m_clQueue) clReleaseCommandQueue(m_clQueue);
@@ -340,20 +338,17 @@ void Dispatcher::initBegin(Device &d)
 	d.m_memPointsDeltaX.setKernelArg(d.m_kernelInverse, 0);
 	d.m_memInversedNegativeDoubleGy.setKernelArg(d.m_kernelInverse, 1);
 
-	// Kernel arguments - profanity_iterate
-	d.m_memPointsDeltaX.setKernelArg(d.m_kernelIterate, 0);
-	d.m_memInversedNegativeDoubleGy.setKernelArg(d.m_kernelIterate, 1);
-	d.m_memPrevLambda.setKernelArg(d.m_kernelIterate, 2);
-
-	// Kernel arguments - profanity_score_*
-	d.m_memInversedNegativeDoubleGy.setKernelArg(d.m_kernelScore, 0);
-	d.m_memResult.setKernelArg(d.m_kernelScore, 1);
-	d.m_memData1.setKernelArg(d.m_kernelScore, 2);
-	d.m_memData2.setKernelArg(d.m_kernelScore, 3);
-	CLMemory<cl_uchar>::setKernelArg(d.m_kernelScore, 4, d.m_clScoreMax);
-	CLMemory<cl_uchar>::setKernelArg(d.m_kernelScore, 5, m_mode.matchingCount);
-	CLMemory<cl_uchar>::setKernelArg(d.m_kernelScore, 6, m_mode.prefixCount);
-	CLMemory<cl_uchar>::setKernelArg(d.m_kernelScore, 7, m_mode.suffixCount);
+	// Kernel arguments - profanity_iterate_score (fused iterate + scoring)
+	d.m_memPointsDeltaX.setKernelArg(d.m_kernelIterateScore, 0);
+	d.m_memInversedNegativeDoubleGy.setKernelArg(d.m_kernelIterateScore, 1);
+	d.m_memPrevLambda.setKernelArg(d.m_kernelIterateScore, 2);
+	d.m_memResult.setKernelArg(d.m_kernelIterateScore, 3);
+	d.m_memData1.setKernelArg(d.m_kernelIterateScore, 4);
+	d.m_memData2.setKernelArg(d.m_kernelIterateScore, 5);
+	CLMemory<cl_uchar>::setKernelArg(d.m_kernelIterateScore, 6, d.m_clScoreMax);
+	CLMemory<cl_uchar>::setKernelArg(d.m_kernelIterateScore, 7, m_mode.matchingCount);
+	CLMemory<cl_uchar>::setKernelArg(d.m_kernelIterateScore, 8, m_mode.prefixCount);
+	CLMemory<cl_uchar>::setKernelArg(d.m_kernelIterateScore, 9, m_mode.suffixCount);
 	
 	// Seed device
 	initContinue(d);
@@ -444,21 +439,20 @@ void Dispatcher::dispatch(Device &d)
 	d.m_memResult.read(false, &event);
 #ifdef PROFANITY_DEBUG
 	cl_event eventInverse;
-	cl_event eventIterate;
+	cl_event eventIterateScore;
 	enqueueKernelDevice(d, d.m_kernelInverse, m_size / m_inverseSize, &eventInverse);
-	enqueueKernelDevice(d, d.m_kernelIterate, m_size, &eventIterate);
+	enqueueKernelDevice(d, d.m_kernelIterateScore, m_size, &eventIterateScore);
 #else
 	enqueueKernelDevice(d, d.m_kernelInverse, m_size / m_inverseSize);
-	enqueueKernelDevice(d, d.m_kernelIterate, m_size);
+	enqueueKernelDevice(d, d.m_kernelIterateScore, m_size);
 #endif
-	enqueueKernelDevice(d, d.m_kernelScore, m_size);
 	clFlush(d.m_clQueue);
 #ifdef PROFANITY_DEBUG
 	// We're actually not allowed to call clFinish here because this function is ultimately asynchronously called by OpenCL.
 	// However, this happens to work on my computer and it's not really intended for release, just something to aid me in
 	// optimizations.
 	clFinish(d.m_clQueue);
-	std::cout << "Timing: profanity_inverse = " << getKernelExecutionTimeMicros(eventInverse) << "us, profanity_iterate = " << getKernelExecutionTimeMicros(eventIterate) << "us" << std::endl;
+	std::cout << "Timing: profanity_inverse = " << getKernelExecutionTimeMicros(eventInverse) << "us, profanity_iterate_score = " << getKernelExecutionTimeMicros(eventIterateScore) << "us" << std::endl;
 #endif
 	const auto res = clSetEventCallback(event, CL_COMPLETE, staticCallback, &d);
 	OpenCLException::throwIfError("failed to set custom callback", res);
@@ -571,7 +565,7 @@ void Dispatcher::handleResult(Device &d)
 		if (r.found > 0 && i >= d.m_clScoreMax)
 		{
 			d.m_clScoreMax = i;
-			CLMemory<cl_uchar>::setKernelArg(d.m_kernelScore, 4, d.m_clScoreMax);
+			CLMemory<cl_uchar>::setKernelArg(d.m_kernelIterateScore, 6, d.m_clScoreMax);
 
 			std::lock_guard<std::mutex> lock(m_mutex);
 			if (i >= m_clScoreMax)

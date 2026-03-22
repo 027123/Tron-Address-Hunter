@@ -56,7 +56,7 @@ inline uint sha_csig1(uint x) { return sha_rotr(x, 6) ^ sha_rotr(x, 11) ^ sha_ro
 /* Eliminates all branching and uses W[64] instead of W[80].           */
 /* ------------------------------------------------------------------ */
 void sha256_21(const uchar *key, uchar *output) {
-  uint W[64];
+  uint W[16];
 
   /* Load 21 bytes into message schedule -- fully unrolled, no branches */
   W[0]  = ((uint)key[0]  << 24) | ((uint)key[1]  << 16) | ((uint)key[2]  << 8) | (uint)key[3];
@@ -70,18 +70,24 @@ void sha256_21(const uchar *key, uchar *output) {
   W[14] = 0;
   W[15] = 168u;  /* 21 * 8 */
 
-#pragma unroll
-  for (int i = 16; i < 64; i++) {
-    W[i] = sha_sig1(W[i - 2]) + W[i - 7] + sha_sig0(W[i - 15]) + W[i - 16];
-  }
-
   uint A = SHA256_H0, B = SHA256_H1, C = SHA256_H2, D = SHA256_H3;
   uint E = SHA256_H4, F = SHA256_H5, G = SHA256_H6, H = SHA256_H7;
   uint T1, T2;
 
+  /* Rounds 0-15: consume initial message words */
 #pragma unroll
-  for (int i = 0; i < 64; i++) {
+  for (int i = 0; i < 16; i++) {
     T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i];
+    T2 = sha_csig0(A) + sha_maj(A, B, C);
+    H = G; G = F; F = E; E = D + T1;
+    D = C; C = B; B = A; A = T1 + T2;
+  }
+
+  /* Rounds 16-63: rolling W[16] schedule -- saves 192 bytes of registers */
+#pragma unroll
+  for (int i = 16; i < 64; i++) {
+    W[i & 15] += sha_sig1(W[(i - 2) & 15]) + W[(i - 7) & 15] + sha_sig0(W[(i - 15) & 15]);
+    T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i & 15];
     T2 = sha_csig0(A) + sha_maj(A, B, C);
     H = G; G = F; F = E; E = D + T1;
     D = C; C = B; B = A; A = T1 + T2;
@@ -105,7 +111,7 @@ void sha256_21(const uchar *key, uchar *output) {
 /* Used for: SHA256(first_hash) in double-SHA256 TRON checksum.        */
 /* ------------------------------------------------------------------ */
 void sha256_32(const uchar *key, uchar *output) {
-  uint W[64];
+  uint W[16];
 
   /* Load 32 bytes -- exactly 8 words, no branches */
   W[0] = ((uint)key[0]  << 24) | ((uint)key[1]  << 16) | ((uint)key[2]  << 8) | (uint)key[3];
@@ -121,18 +127,24 @@ void sha256_32(const uchar *key, uchar *output) {
   W[13] = 0; W[14] = 0;
   W[15] = 256u;  /* 32 * 8 */
 
-#pragma unroll
-  for (int i = 16; i < 64; i++) {
-    W[i] = sha_sig1(W[i - 2]) + W[i - 7] + sha_sig0(W[i - 15]) + W[i - 16];
-  }
-
   uint A = SHA256_H0, B = SHA256_H1, C = SHA256_H2, D = SHA256_H3;
   uint E = SHA256_H4, F = SHA256_H5, G = SHA256_H6, H = SHA256_H7;
   uint T1, T2;
 
+  /* Rounds 0-15: consume initial message words */
 #pragma unroll
-  for (int i = 0; i < 64; i++) {
+  for (int i = 0; i < 16; i++) {
     T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i];
+    T2 = sha_csig0(A) + sha_maj(A, B, C);
+    H = G; G = F; F = E; E = D + T1;
+    D = C; C = B; B = A; A = T1 + T2;
+  }
+
+  /* Rounds 16-63: rolling W[16] schedule -- saves 192 bytes of registers */
+#pragma unroll
+  for (int i = 16; i < 64; i++) {
+    W[i & 15] += sha_sig1(W[(i - 2) & 15]) + W[(i - 7) & 15] + sha_sig0(W[(i - 15) & 15]);
+    T1 = H + sha_csig1(E) + sha_ch(E, F, G) + sha256_K[i] + W[i & 15];
     T2 = sha_csig0(A) + sha_maj(A, B, C);
     H = G; G = F; F = E; E = D + T1;
     D = C; C = B; B = A; A = T1 + T2;

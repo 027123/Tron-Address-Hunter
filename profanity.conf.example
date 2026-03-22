@@ -17,8 +17,8 @@ quit-count=10
 # Output results to file (supports {date} placeholder, expands to YYYYMMDD_HHMM)
 output=result_{date}.txt
 
-# Local work size (default 64)
-# work=64
+# Local work size (default 128)
+# work=128
 
 # Skip GPU device by index (e.g. skip integrated GPU)
 skip=1
