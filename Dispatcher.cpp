@@ -266,9 +266,9 @@ void Dispatcher::run()
 
 	std::cout << std::endl;
 	std::cout << "Running..." << std::endl;
-	std::cout << "  Before using a generated vanigity address, always verify that it matches the printed private key." << std::endl;
-	std::cout << "  Please make sure the program you are running is download from: https://github.com/GG4mida/profanity-tron" << std::endl;
-	std::cout << "  And always multi-sign the address to ensure account security. " << std::endl;
+	std::cout << "  IMPORTANT: Before using any generated address, import the private key into" << std::endl;
+	std::cout << "  a wallet (e.g. TronLink) and verify the derived address matches." << std::endl;
+	std::cout << "  Always multi-sign the address to ensure account security." << std::endl;
 	std::cout << std::endl;
 
 	for (auto it = m_vDevices.begin(); it != m_vDevices.end(); ++it)
@@ -511,6 +511,7 @@ static void printResult(
 	// Print
 	const std::string strVT100ClearLine = "\33[2K\r";
 	std::cout << strVT100ClearLine << "  Time: " << std::setw(5) << seconds << "s Private: " << strPrivate << " Address:" << strPublicTron << std::endl;
+	std::cout << "  ** Please verify: import this private key into a wallet to confirm the address matches **" << std::endl;
 	
 	if(!outputFile.empty()) {
 		writeResult(strPrivate, strPublicTron, outputFile);

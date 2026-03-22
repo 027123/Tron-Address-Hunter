@@ -9,6 +9,9 @@ Usage: ./profanity [OPTIONS]
   Help:
     --help              Show help information
 
+  Config:
+    --config            Path to config file (default: profanity.conf)
+
   Modes with arguments:
     --matching          Matching input, file or single address.
 
@@ -30,7 +33,14 @@ Examples:
   ./profanity --matching profanity.txt --prefix-count 1 --suffix-count 8
   ./profanity --matching profanity.txt --prefix-count 1 --suffix-count 10 --quit-count 1
   ./profanity --matching profanity.txt --output result.txt
+  ./profanity --config my.conf
   ./profanity --matching TUqEg3dzVEJNQSVW2HY98z5X8SBdhmao8D --prefix-count 2 --suffix-count 4 --quit-count 1
+
+Config file format (one option per line, # for comments):
+  matching=profanity.txt
+  prefix-count=1
+  suffix-count=8
+  output=result.txt
 
 About:
 

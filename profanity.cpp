@@ -178,6 +178,17 @@ int main(int argc, char **argv)
 		size_t suffixCount = 6;
 		size_t quitCount = 0;
 
+		// Load config file: -c/--config from command line, or default profanity.conf
+		std::string configFile = argp.findValue('c', "config");
+		if (!configFile.empty()) {
+			if (!argp.loadFromFile(configFile)) {
+				std::cout << "error: Failed to open config file '" << configFile << "'" << std::endl;
+				return 1;
+			}
+		} else {
+			argp.loadFromFile("profanity.conf");
+		}
+
 		argp.addSwitch('h', "help", bHelp);
 		argp.addSwitch('m', "matching", matchingInput);
 		argp.addSwitch('w', "work", worksizeLocal);

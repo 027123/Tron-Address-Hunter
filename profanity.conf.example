@@ -1,0 +1,24 @@
+# Tron Address Hunter configuration file
+# Copy this file to profanity.conf and modify as needed.
+# Command line arguments override config file values.
+
+# Matching input: file path or single address
+matching=profanity.txt
+
+# Minimum number of prefix matches (0-10, default 0)
+# prefix-count=0
+
+# Minimum number of suffix matches (0-10, default 6)
+suffix-count=6
+
+# Exit after finding this many results (0 = unlimited)
+# quit-count=0
+
+# Output results to file
+# output=result.txt
+
+# Local work size (default 64)
+# work=64
+
+# Skip GPU device by index
+# skip=0
