@@ -12,13 +12,13 @@ matching=profanity.txt
 suffix-count=6
 
 # Exit after finding this many results (0 = unlimited)
-# quit-count=0
+quit-count=10
 
-# Output results to file
-# output=result.txt
+# Output results to file (supports {date} placeholder, expands to YYYYMMDD_HHMM)
+output=result_{date}.txt
 
 # Local work size (default 64)
 # work=64
 
-# Skip GPU device by index
-# skip=0
+# Skip GPU device by index (e.g. skip integrated GPU)
+skip=1

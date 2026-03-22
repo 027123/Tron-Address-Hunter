@@ -29,18 +29,38 @@
 - NVIDIA 显卡 + 驱动
 - Visual Studio（需安装 C++ 桌面开发组件）
 
-**编译**：双击 `build.bat`（自动查找 VS 环境）
+**一键编译**：
+
+```cmd
+git clone https://github.com/027123/Tron-Address-Hunter.git
+cd Tron-Address-Hunter
+.\build.bat
+```
+
+`build.bat` 会自动查找 Visual Studio 环境并编译生成 `profanity.exe`。
+
+也可以手动编译（在 x64 Native Tools Command Prompt 中）：
+
+```cmd
+cl /O2 /EHsc /std:c++17 /I "OpenCL/include" /I "third_party" src\Dispatcher.cpp src\Mode.cpp src\precomp.cpp src\profanity.cpp src\SpeedSample.cpp third_party\uECC.c /link /OUT:profanity.exe "OpenCL/lib/OpenCL.lib" ws2_32.lib advapi32.lib
+```
 
 ### 编译（Linux/macOS）
 
 ```bash
+git clone https://github.com/027123/Tron-Address-Hunter.git
+cd Tron-Address-Hunter
 make
 ```
 
 ### 运行
 
+编译完成后，将 `dist/` 目录下的配置文件复制到 `profanity.exe` 同级目录，双击运行即可。
+
+也可以通过命令行运行：
+
 ```cmd
-./profanity.x64 --matching profanity.txt --suffix-count 6 --quit-count 10 -o result.txt
+profanity.exe --matching profanity.txt --suffix-count 6 --quit-count 10 -o result.txt
 ```
 
 ## 命令参数
@@ -55,7 +75,7 @@ profanity [OPTIONS]
   --suffix-count      最少匹配后缀位数，默认 6
   --quit-count        生成指定数量后退出，默认 0（不退出）
   --skip              跳过指定索引的 GPU 设备
-  --output            结果输出到文件（追加写入）
+  --output            结果输出到文件（追加写入，支持 {date} 占位符）
 ```
 
 ## 配置文件
@@ -67,9 +87,15 @@ profanity [OPTIONS]
 matching=profanity.txt
 # 后缀匹配位数
 suffix-count=6
-# 结果输出文件
-output=result.txt
+# 找到 10 个结果后退出
+quit-count=10
+# 跳过核显（根据实际 GPU 编号调整）
+skip=1
+# 结果输出文件（{date} 自动替换为启动时间 YYYYMMDD_HHMM）
+output=result_{date}.txt
 ```
+
+`{date}` 占位符会在程序启动时自动替换为当前日期和时间，例如 `result_20260322_1430.txt`。
 
 命令行参数优先于配置文件。
 
