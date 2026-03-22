@@ -6,10 +6,10 @@ EXECUTABLE=profanity.x64
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-	LDFLAGS=-framework OpenCL -lcurl
+	LDFLAGS=-framework OpenCL
 	CFLAGS=-c -std=c++11 -Wall -mmmx -O3
 else
-	LDFLAGS=-s -lOpenCL -lcurl -mcmodel=large
+	LDFLAGS=-s -lOpenCL -mcmodel=large
 	CFLAGS=-c -std=c++11 -Wall -mmmx -O3 -mcmodel=large
 endif
 

@@ -16,9 +16,6 @@
 #endif
 
 #include "precomp.hpp"
-#ifndef NO_CURL
-#include <curl/curl.h>
-#endif
 
 static const uint8_t base58Alphabet[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
@@ -221,8 +218,7 @@ Dispatcher::Dispatcher(cl_context &clContext,
 					   const size_t inverseSize,
 					   const size_t inverseMultiple,
 					   const cl_uchar clScoreQuit,
-						 const std::string & outputFile,
-						 const std::string & postUrl)
+					   const std::string & outputFile)
 	: m_clContext(clContext),
 	  m_clProgram(clProgram),
 	  m_mode(mode),
@@ -231,8 +227,7 @@ Dispatcher::Dispatcher(cl_context &clContext,
 	  m_size(inverseSize * inverseMultiple),
 	  m_clScoreMax(mode.score),
 	  m_clScoreQuit(clScoreQuit),
-		m_outputFile(outputFile),
-		m_postUrl(postUrl),
+	  m_outputFile(outputFile),
 	  m_eventFinished(NULL),
 	  m_countPrint(0)
 {
@@ -477,43 +472,6 @@ static void writeResult(const std::string& privateKey, const std::string& addres
 	}
 }
 
-#ifndef NO_CURL
-static size_t handlePostOutput(void* ptr, size_t size, size_t nmemb, void* stream)
-{
-	(void)ptr;
-	(void)stream;
-	return size * nmemb;
-}
-
-static void postResult(const std::string& privateKey, const std::string& address, const std::string& postUrl) {
-	if (!postUrl.empty()) {
-		CURL* curl;
-		std::string postFields = "privatekey=" + privateKey + "&address=" + address;
-		try {
-			curl_global_init(CURL_GLOBAL_DEFAULT);
-			curl = curl_easy_init();
-			if (curl) {
-				curl_easy_setopt(curl, CURLOPT_URL, postUrl.c_str());
-				curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields.c_str());
-				curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 3000);
-				curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
-				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-				curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &handlePostOutput);
-
-				curl_easy_perform(curl);
-				curl_easy_cleanup(curl);
-			}
-			curl_global_cleanup();
-		}
-		catch (...) {
-			std::cout << "error: unknown exception occured while post data :<" << std::endl;
-		}
-	}
-}
-#else
-static void postResult(const std::string&, const std::string&, const std::string&) {}
-#endif
 
 static void printResult(
 	cl_ulong4 seed,
@@ -522,8 +480,7 @@ static void printResult(
 	cl_uchar score,
 	const std::chrono::time_point<std::chrono::steady_clock> &timeStart,
 	const Mode & mode,
-	const std::string & outputFile = NULL,
-	const std::string & postUrl = NULL)
+	const std::string & outputFile = NULL)
 {
 	// Time delta
 	const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - timeStart).count();
@@ -558,10 +515,6 @@ static void printResult(
 	if(!outputFile.empty()) {
 		writeResult(strPrivate, strPublicTron, outputFile);
 	}
-
-	if(!postUrl.empty()) {
-		postResult(strPrivate, strPublicTron, postUrl);
-	}
 }
 
 void Dispatcher::handleResult(Device &d)
@@ -586,7 +539,7 @@ void Dispatcher::handleResult(Device &d)
 					m_quit = true;
 				}
 
-				printResult(d.m_clSeed, d.m_round, r, i, timeStart, m_mode, m_outputFile, m_postUrl);
+				printResult(d.m_clSeed, d.m_round, r, i, timeStart, m_mode, m_outputFile);
 			}
 
 			break;

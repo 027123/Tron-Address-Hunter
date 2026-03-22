@@ -168,8 +168,6 @@ int main(int argc, char **argv)
 
 		std::string matchingInput;
 		std::string outputFile;
-		// localhost test post url
-		std::string postUrl = "http://127.0.0.1:7002/api/address";
 		std::vector<size_t> vDeviceSkipIndex;
 		size_t worksizeLocal = 64;
 		size_t worksizeMax = 0;
@@ -186,7 +184,6 @@ int main(int argc, char **argv)
 		argp.addSwitch('W', "work-max", worksizeMax);
 		argp.addSwitch('n', "no-cache", bNoCache);
 		argp.addSwitch('o', "output", outputFile);
-		argp.addSwitch('p', "post", postUrl);
 		argp.addSwitch('i', "inverse-size", inverseSize);
 		argp.addSwitch('I', "inverse-multiple", inverseMultiple);
 		argp.addSwitch('b', "prefix-count", prefixCount);
@@ -356,7 +353,7 @@ int main(int argc, char **argv)
 
 		std::cout << std::endl;
 
-		Dispatcher d(clContext, clProgram, mode, worksizeMax == 0 ? inverseSize * inverseMultiple : worksizeMax, inverseSize, inverseMultiple, quitCount, outputFile, postUrl);
+		Dispatcher d(clContext, clProgram, mode, worksizeMax == 0 ? inverseSize * inverseMultiple : worksizeMax, inverseSize, inverseMultiple, quitCount, outputFile);
 
 		for (auto &i : vDevices)
 		{
