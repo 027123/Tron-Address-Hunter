@@ -400,7 +400,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		// Print build warnings if any
+		// Print build warnings if any (skip NVIDIA noinline info messages)
 		for (size_t i = 0; i < vDevices.size(); ++i)
 		{
 			size_t logSize = 0;
@@ -413,7 +413,12 @@ int main(int argc, char **argv)
 				size_t end = buildLog.find_last_not_of(" \t\n\r\0");
 				if (end != std::string::npos && end > 0)
 				{
-					std::cout << "  Build log (GPU-" << i << "): " << buildLog.substr(0, end + 1) << std::endl;
+					std::string trimmed = buildLog.substr(0, end + 1);
+					// Skip if log only contains NVIDIA noinline info messages
+					if (trimmed.find("warning:") != std::string::npos || trimmed.find("error:") != std::string::npos)
+					{
+						std::cout << "  Build log (GPU-" << i << "): " << trimmed << std::endl;
+					}
 				}
 			}
 		}
