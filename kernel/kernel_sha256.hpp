@@ -8,7 +8,7 @@ const std::string kernel_sha256 = R"(
 /* SHA-256 round constants in __constant memory (shared by all work items).
  * Moving these out of per-thread private memory saves ~256 bytes of register
  * pressure per SHA-256 invocation.  Since the scoring kernel calls SHA-256
- * twice, this frees ~512 bytes of registers per thread — a significant
+ * twice, this frees ~512 bytes of registers per thread -- a significant
  * occupancy improvement on most GPUs. */
 __constant const uint sha256_K[64] = {
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
@@ -58,7 +58,7 @@ inline uint sha_csig1(uint x) { return sha_rotr(x, 6) ^ sha_rotr(x, 11) ^ sha_ro
 void sha256_21(const uchar *key, uchar *output) {
   uint W[64];
 
-  /* Load 21 bytes into message schedule — fully unrolled, no branches */
+  /* Load 21 bytes into message schedule -- fully unrolled, no branches */
   W[0]  = ((uint)key[0]  << 24) | ((uint)key[1]  << 16) | ((uint)key[2]  << 8) | (uint)key[3];
   W[1]  = ((uint)key[4]  << 24) | ((uint)key[5]  << 16) | ((uint)key[6]  << 8) | (uint)key[7];
   W[2]  = ((uint)key[8]  << 24) | ((uint)key[9]  << 16) | ((uint)key[10] << 8) | (uint)key[11];
@@ -107,7 +107,7 @@ void sha256_21(const uchar *key, uchar *output) {
 void sha256_32(const uchar *key, uchar *output) {
   uint W[64];
 
-  /* Load 32 bytes — exactly 8 words, no branches */
+  /* Load 32 bytes -- exactly 8 words, no branches */
   W[0] = ((uint)key[0]  << 24) | ((uint)key[1]  << 16) | ((uint)key[2]  << 8) | (uint)key[3];
   W[1] = ((uint)key[4]  << 24) | ((uint)key[5]  << 16) | ((uint)key[6]  << 8) | (uint)key[7];
   W[2] = ((uint)key[8]  << 24) | ((uint)key[9]  << 16) | ((uint)key[10] << 8) | (uint)key[11];
@@ -161,7 +161,7 @@ void ethhash_to_tronhash(const uchar *ethhash, uchar *tronhash) {
   uchar hash1[32];
   uchar hash2[32];
 
-  hash0[0] = 65;  /* 0x41 — TRON network prefix */
+  hash0[0] = 65;  /* 0x41 -- TRON network prefix */
   for (uint i = 0; i < 20; i++) {
     hash0[i + 1] = ethhash[i];
   }
