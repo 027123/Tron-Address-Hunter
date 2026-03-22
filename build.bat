@@ -27,7 +27,7 @@ exit /b 1
 :compile
 echo.
 echo Compiling...
-cl /O2 /EHsc /std:c++17 /I "OpenCL/include" src\Dispatcher.cpp src\Mode.cpp src\precomp.cpp src\profanity.cpp src\SpeedSample.cpp third_party\uECC.c /link /OUT:profanity.exe "OpenCL/lib/OpenCL.lib" ws2_32.lib advapi32.lib
+cl /O2 /EHsc /std:c++17 /I "OpenCL/include" /I "third_party" src\Dispatcher.cpp src\Mode.cpp src\precomp.cpp src\profanity.cpp src\SpeedSample.cpp third_party\uECC.c /link /OUT:profanity.exe "OpenCL/lib/OpenCL.lib" ws2_32.lib advapi32.lib
 
 if %errorlevel% equ 0 (
     echo.
