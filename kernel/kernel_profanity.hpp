@@ -483,7 +483,7 @@ __kernel void profanity_score_matching(
 	char tron_addr[34];
 	base58_encode(tron_hash, tron_addr, 25);
 
-	/* Match directly against tron_addr — no intermediate copy needed.
+	/* Match directly against tron_addr -- no intermediate copy needed.
 	 * Prefix positions [0..9]  -> tron_addr[0..9]   (data index 0..9)
 	 * Suffix positions [10..19] -> tron_addr[24..33] (data index 10..19)
 	 * Mapping: data index i in [10,19] -> tron_addr[i + 14] */
