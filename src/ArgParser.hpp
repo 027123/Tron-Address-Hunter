@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <vector>
 #include <map>
+#include <fstream>
+#include <iostream>
 #include "lexical_cast.hpp"
 
 class ArgParser {
@@ -78,6 +80,55 @@ class ArgParser {
 			IArgument * const pArgLong = new MultiArgument<T>(t);
 			m_mapArgs[strShort] = std::pair<bool, IArgument *>(false, pArgShort);
 			m_mapArgs[strLong] = std::pair<bool, IArgument *>(false, pArgLong);
+		}
+
+		// Pre-scan for a specific argument value before full parsing
+		std::string findValue(const char switchShort, const std::string & switchLong) const {
+			const std::string strShort = std::string("-") + switchShort;
+			const std::string strLong = std::string("--") + switchLong;
+			for (size_t i = 0; i + 1 < m_args.size(); ++i) {
+				if (m_args[i] == strShort || m_args[i] == strLong) {
+					return m_args[i + 1];
+				}
+			}
+			return "";
+		}
+
+		bool loadFromFile(const std::string & filename) {
+			std::ifstream file(filename);
+			if (!file.is_open()) {
+				return false;
+			}
+
+			std::string line;
+			std::vector<std::string> fileArgs;
+			while (std::getline(file, line)) {
+				// Remove trailing \r from Windows line endings
+				if (!line.empty() && line.back() == '\r') {
+					line.pop_back();
+				}
+				// Skip empty lines and comments
+				if (line.empty() || line[0] == '#') {
+					continue;
+				}
+				auto pos = line.find('=');
+				if (pos == std::string::npos) {
+					continue;
+				}
+				std::string key = line.substr(0, pos);
+				std::string value = line.substr(pos + 1);
+				fileArgs.push_back("--" + key);
+				if (value != "true") {
+					fileArgs.push_back(value);
+				}
+			}
+
+			// Prepend file args so command line args take precedence
+			fileArgs.insert(fileArgs.end(), m_args.begin(), m_args.end());
+			m_args = fileArgs;
+
+			std::cout << "  Config loaded from " << filename << std::endl;
+			return true;
 		}
 
 		bool parse() const {
