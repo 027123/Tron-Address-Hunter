@@ -21,7 +21,7 @@ Usage: ./profanity [OPTIONS]
     --quit-count        Exit the program when the generated number is greater than, default 0
 
   Device control:
-    --skip              Skip device given by index
+    --skip              Skip device given by index (auto-detected if not set)
 
   Output control:
     --output            The file to output the results to
@@ -29,7 +29,7 @@ Usage: ./profanity [OPTIONS]
 Examples:
 
   ./profanity --matching profanity.txt
-  ./profanity --matching profanity.txt --skip 1
+  ./profanity --matching profanity.txt --skip 0    (skip GPU-0, use GPU-1)
   ./profanity --matching profanity.txt --prefix-count 1 --suffix-count 8
   ./profanity --matching profanity.txt --prefix-count 1 --suffix-count 10 --quit-count 1
   ./profanity --matching profanity.txt --output result.txt

@@ -82,7 +82,7 @@ profanity [OPTIONS]
   --prefix-count      最少匹配前缀位数，默认 0
   --suffix-count      最少匹配后缀位数，默认 6
   --quit-count        生成指定数量后退出，默认 0（不退出）
-  --skip              跳过指定索引的 GPU 设备
+  --skip              跳过指定索引的 GPU 设备（可多次使用）
   --output            结果输出到文件（追加写入，支持 {date} 占位符）
 ```
 
@@ -97,15 +97,29 @@ matching=profanity.txt
 suffix-count=6
 # 找到 10 个结果后退出
 quit-count=10
-# 跳过核显（根据实际 GPU 编号调整）
-skip=1
 # 结果输出文件（{date} 自动替换为启动时间 YYYYMMDD_HHMM）
 output=result_{date}.txt
+# 跳过指定 GPU（可选，按 GPU 编号指定）
+# skip=1
 ```
 
 `{date}` 占位符会在程序启动时自动替换为当前日期和时间，例如 `result_20260322_1430.txt`。
 
 命令行参数优先于配置文件。
+
+## GPU 多设备支持
+
+程序会自动检测系统中所有 GPU 设备。如果存在来自不同厂商（如 NVIDIA + AMD 核显）的 GPU，程序会自动选择计算能力最强的平台运行，跳过不兼容的设备，并输出提示信息。
+
+如果需要手动控制使用哪个 GPU，可以通过 `--skip` 参数或配置文件中的 `skip` 选项跳过指定编号的 GPU：
+
+```ini
+# 跳过 GPU-0（使用核显）
+skip=0
+
+# 跳过 GPU-1（使用独显）
+skip=1
+```
 
 ## 匹配规则
 

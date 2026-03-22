@@ -21,4 +21,6 @@ output=result_{date}.txt
 # work=128
 
 # Skip GPU device by index (e.g. skip integrated GPU)
-skip=1
+# No longer needed by default - the program auto-detects and skips
+# incompatible GPUs from different OpenCL platforms.
+# skip=1
