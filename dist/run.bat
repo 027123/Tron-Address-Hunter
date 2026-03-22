@@ -42,9 +42,9 @@ echo ============================================
 echo.
 
 if "%PREFIX%"=="0" (
-    profanity.exe --matching profanity.txt --suffix-count %SUFFIX% --quit-count %QUIT% --skip 1 -o %OUTFILE%
+    profanity.exe --matching profanity.txt --suffix-count %SUFFIX% --quit-count %QUIT% -o %OUTFILE%
 ) else (
-    profanity.exe --matching profanity.txt --prefix-count %PREFIX% --suffix-count %SUFFIX% --quit-count %QUIT% --skip 1 -o %OUTFILE%
+    profanity.exe --matching profanity.txt --prefix-count %PREFIX% --suffix-count %SUFFIX% --quit-count %QUIT% -o %OUTFILE%
 )
 
 echo.
