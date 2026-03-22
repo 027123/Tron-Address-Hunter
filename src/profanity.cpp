@@ -281,7 +281,7 @@ int main(int argc, char **argv)
 		// Startup summary
 		std::cout << std::endl;
 		std::cout << "Configuration:" << std::endl;
-		std::cout << "  Matching:      " << matchingInput << " (" << mode.matchingCount << " pattern(s))" << std::endl;
+		std::cout << "  Matching:      " << matchingInput << " (" << (int)mode.matchingCount << " pattern(s))" << std::endl;
 		std::cout << "  Prefix count:  " << prefixCount << std::endl;
 		std::cout << "  Suffix count:  " << suffixCount << std::endl;
 		if (quitCount > 0) {
