@@ -32,12 +32,19 @@ if "%QUIT%"=="" set QUIT=1
 for /f %%i in ('powershell -noprofile -command "Get-Date -Format yyyyMMdd-HHmmss"') do set TIMESTAMP=%%i
 set OUTFILE=result\result-%TIMESTAMP%.txt
 
+:: Count valid patterns (non-empty, non-comment lines) in profanity.txt
+set PATCOUNT=0
+if exist profanity.txt (
+    for /f "usebackq eol=# delims=" %%a in ("profanity.txt") do set /a PATCOUNT+=1
+)
+
 echo.
 echo ============================================
-echo  Prefix: %PREFIX%
-echo  Suffix: %SUFFIX%
-echo  Find:   %QUIT% address(es)
-echo  Output: %OUTFILE%
+echo  Prefix:   %PREFIX%
+echo  Suffix:   %SUFFIX%
+echo  Find:     %QUIT% address(es)
+echo  Patterns: %PATCOUNT%
+echo  Output:   %OUTFILE%
 echo ============================================
 echo.
 
