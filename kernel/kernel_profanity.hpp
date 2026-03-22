@@ -379,7 +379,8 @@ __kernel void profanity_inverse(__global const mp_number * const pDeltaX, __glob
 
 	copy1 = buffer[PROFANITY_INVERSE_SIZE - 1];
 	mp_mod_inverse(&copy1);
-	mp_mod_mul(&copy1, &copy1, &negativeDoubleGy);
+	mp_number localDoubleNegGy = doubleNegativeGy;
+	mp_mod_mul(&copy1, &copy1, &localDoubleNegGy);
 
 	for (uint i = PROFANITY_INVERSE_SIZE - 1; i > 0; --i) {
 		mp_mod_mul(&copy2, &copy1, &buffer[i - 1]);
@@ -423,7 +424,8 @@ __kernel void profanity_iterate_score(
 	mp_mod_mul(&tmp, &lambda, &dX);
 	mp_mod_sub_const(&tmp, &negativeGy, &tmp);
 
-	mp_mod_sub(&dX, &dX, &negativeGx);
+	mp_number localNegGx = negativeGx;
+	mp_mod_sub(&dX, &dX, &localNegGx);
 
 	h.d[0] = bswap32(dX.d[MP_WORDS - 1]);
 	h.d[1] = bswap32(dX.d[MP_WORDS - 2]);
