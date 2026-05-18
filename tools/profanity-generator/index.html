@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>profanity.txt 生成器 · Tron Address Hunter</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+  .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+  .pill { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+<div class="max-w-7xl mx-auto p-6">
+
+  <header class="mb-6">
+    <h1 class="text-2xl font-bold text-slate-900">profanity.txt 生成器</h1>
+    <p class="text-sm text-slate-500 mt-1">
+      为 <span class="mono">Tron-Address-Hunter</span> 生成匹配规则字典文件。每行 20 字符 = 前缀 10 + 后缀 10。
+      Base58 不允许字符
+      <code class="mono bg-rose-100 text-rose-700 px-1 rounded">0</code>
+      <code class="mono bg-rose-100 text-rose-700 px-1 rounded">O</code>
+      <code class="mono bg-rose-100 text-rose-700 px-1 rounded">I</code>
+      <code class="mono bg-rose-100 text-rose-700 px-1 rounded">l</code>。
+    </p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- LEFT: configuration -->
+    <div class="space-y-4">
+
+      <!-- Global settings -->
+      <section class="bg-white rounded-lg border border-slate-200 p-5">
+        <h2 class="text-base font-semibold mb-3 text-slate-900">全局设置</h2>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">前缀（10 字符）</label>
+            <input id="prefix" type="text" value="TTTTTTTTTT" maxlength="10"
+              class="mono w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+            <p class="text-xs text-slate-500 mt-1">Tron 地址以 <span class="mono">T</span> 开头，建议保持首字符为 T。</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">
+              后缀长度：<span id="suffixLenLabel" class="mono font-semibold text-indigo-600">10</span>
+            </label>
+            <input id="suffixLen" type="range" min="1" max="10" value="10"
+              class="w-full">
+            <div class="flex justify-between text-xs text-slate-400 mono px-1">
+              <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+              <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">
+              小于 10 时，后缀左侧自动用 <span class="mono">T</span> 补齐到 10 位（搭配命令行 <span class="mono">--suffix-count</span> 使用）。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Mode A: 豹子 -->
+      <section class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold text-slate-900">模式 A · 豹子</h2>
+          <span class="pill bg-indigo-100 text-indigo-700">每个字符生成一行 N 位重复</span>
+        </div>
+
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="useDigits" class="w-4 h-4 text-indigo-600 rounded">
+            <span class="text-sm">数字 <span class="mono text-xs text-slate-500">(1-9，剔除 0)</span></span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="useUpper" class="w-4 h-4 text-indigo-600 rounded">
+            <span class="text-sm">大写字母 <span class="mono text-xs text-slate-500">(A-Z，剔除 O / I)</span></span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="useLower" class="w-4 h-4 text-indigo-600 rounded">
+            <span class="text-sm">小写字母 <span class="mono text-xs text-slate-500">(a-z，剔除 l)</span></span>
+          </label>
+        </div>
+
+        <div class="mt-3">
+          <label class="block text-sm font-medium text-slate-700 mb-1">追加自定义字符（大小写敏感）</label>
+          <input id="customChars" type="text" placeholder="例如 ABC123"
+            class="mono w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+          <p class="text-xs text-slate-500 mt-1">每个字符各自生成一行豹子，会与上面勾选的字符自动去重。</p>
+        </div>
+      </section>
+
+      <!-- Mode B: 自定义字符串 -->
+      <section class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold text-slate-900">模式 B · 自定义字符串</h2>
+          <span class="pill bg-emerald-100 text-emerald-700">每行一个，长度需 = 后缀长度</span>
+        </div>
+
+        <textarea id="customStrings" rows="6" placeholder="每行一个后缀，例如：&#10;88888888&#10;ABCDabcd&#10;12345678"
+          class="mono w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"></textarea>
+        <p class="text-xs text-slate-500 mt-1">空行忽略；长度不匹配或含非法字符的行会在右侧报错。</p>
+      </section>
+
+    </div>
+
+    <!-- RIGHT: preview & actions -->
+    <div class="space-y-4">
+
+      <!-- Errors -->
+      <section id="errorBox" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4">
+        <h3 class="text-sm font-semibold text-rose-700 mb-2 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          校验未通过
+        </h3>
+        <ul id="errorList" class="text-sm text-rose-700 space-y-1 list-disc list-inside"></ul>
+      </section>
+
+      <!-- Preview -->
+      <section class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-base font-semibold text-slate-900">
+            预览 <span class="text-sm font-normal text-slate-500">(<span id="count">0</span> 行)</span>
+          </h2>
+          <div class="flex gap-2">
+            <button id="btnCopy" type="button"
+              class="px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition">
+              复制全部
+            </button>
+            <button id="btnDownload" type="button"
+              class="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition">
+              下载 profanity.txt
+            </button>
+          </div>
+        </div>
+
+        <pre id="preview" class="mono text-xs bg-slate-900 text-slate-100 p-3 rounded-md overflow-auto max-h-[28rem] leading-relaxed"></pre>
+
+        <div id="emptyHint" class="hidden mt-3 text-sm text-slate-500 text-center py-8">
+          请在左侧勾选字符类型或填写自定义字符串。
+        </div>
+      </section>
+
+      <!-- Help -->
+      <section class="bg-white rounded-lg border border-slate-200 p-5 text-sm text-slate-600 space-y-2">
+        <h3 class="text-sm font-semibold text-slate-900">使用说明</h3>
+        <ol class="list-decimal list-inside space-y-1">
+          <li>点"下载 profanity.txt"，把文件放到 <span class="mono bg-slate-100 px-1 rounded">profanity.exe</span> 同目录。</li>
+          <li>运行：<span class="mono bg-slate-100 px-1 rounded">profanity.exe --matching profanity.txt --suffix-count N --quit-count 10</span></li>
+          <li>其中 <span class="mono">--suffix-count</span> 应 = 你设置的后缀长度。</li>
+        </ol>
+        <p class="text-xs text-slate-500 pt-1">当前 C++ 程序不支持通配符；位置上的字符必须精确匹配。</p>
+      </section>
+
+    </div>
+  </div>
+
+  <footer class="mt-8 text-center text-xs text-slate-400">
+    Tron-Address-Hunter · profanity.txt generator
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  const BASE58_SET = new Set(BASE58);
+  const DIGITS = '123456789';
+  const UPPER  = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const LOWER  = 'abcdefghijkmnopqrstuvwxyz';
+
+  const $ = (id) => document.getElementById(id);
+
+  const els = {
+    prefix:         $('prefix'),
+    suffixLen:      $('suffixLen'),
+    suffixLenLabel: $('suffixLenLabel'),
+    useDigits:      $('useDigits'),
+    useUpper:       $('useUpper'),
+    useLower:       $('useLower'),
+    customChars:    $('customChars'),
+    customStrings:  $('customStrings'),
+    preview:        $('preview'),
+    count:          $('count'),
+    errorBox:       $('errorBox'),
+    errorList:      $('errorList'),
+    emptyHint:      $('emptyHint'),
+    btnCopy:        $('btnCopy'),
+    btnDownload:    $('btnDownload'),
+  };
+
+  function findInvalidBase58(s) {
+    const set = new Set();
+    for (const c of s) if (!BASE58_SET.has(c)) set.add(c);
+    return [...set];
+  }
+
+  function padSuffix(s) {
+    return 'T'.repeat(10 - s.length) + s;
+  }
+
+  function regenerate() {
+    const errors = [];
+    const prefix = els.prefix.value;
+    const suffixLen = parseInt(els.suffixLen.value, 10);
+    els.suffixLenLabel.textContent = suffixLen;
+
+    // Validate prefix
+    let prefixOk = true;
+    if (prefix.length !== 10) {
+      errors.push(`前缀必须为 10 字符，当前 ${prefix.length} 字符。`);
+      prefixOk = false;
+    }
+    const prefixBad = findInvalidBase58(prefix);
+    if (prefixBad.length) {
+      errors.push(`前缀包含非 Base58 字符：${prefixBad.map(c => `"${c}"`).join('、')}`);
+      prefixOk = false;
+    }
+    if (prefixOk && prefix[0] !== 'T') {
+      errors.push(`前缀首字符建议为 "T"（Tron 地址固定前缀），当前为 "${prefix[0]}"。`);
+    }
+
+    // Validate suffix length
+    if (isNaN(suffixLen) || suffixLen < 1 || suffixLen > 10) {
+      errors.push('后缀长度必须在 1-10 之间。');
+    }
+
+    // Collect baozi chars
+    const baoziPool = new Set();
+    if (els.useDigits.checked) for (const c of DIGITS) baoziPool.add(c);
+    if (els.useUpper.checked)  for (const c of UPPER)  baoziPool.add(c);
+    if (els.useLower.checked)  for (const c of LOWER)  baoziPool.add(c);
+
+    const customChars = els.customChars.value;
+    const customCharsBad = findInvalidBase58(customChars);
+    if (customCharsBad.length) {
+      errors.push(`豹子-自定义字符包含非 Base58 字符：${customCharsBad.map(c => `"${c}"`).join('、')}`);
+    }
+    for (const c of customChars) {
+      if (BASE58_SET.has(c)) baoziPool.add(c);
+    }
+
+    // Validate custom strings
+    const rawStrings = els.customStrings.value.split('\n');
+    const validStrings = [];
+    rawStrings.forEach((raw, idx) => {
+      const s = raw.trim();
+      if (!s) return;
+      if (s.length !== suffixLen) {
+        errors.push(`自定义字符串第 ${idx + 1} 行长度 ${s.length} ≠ 后缀长度 ${suffixLen}："${s}"`);
+        return;
+      }
+      const bad = findInvalidBase58(s);
+      if (bad.length) {
+        errors.push(`自定义字符串第 ${idx + 1} 行含非法字符 ${bad.map(c => `"${c}"`).join('、')}："${s}"`);
+        return;
+      }
+      validStrings.push(s);
+    });
+
+    // Generate lines (only if prefix is usable; otherwise produce nothing)
+    const lines = new Set();
+    if (prefixOk && !isNaN(suffixLen) && suffixLen >= 1 && suffixLen <= 10) {
+      for (const c of baoziPool) {
+        lines.add(prefix + padSuffix(c.repeat(suffixLen)));
+      }
+      for (const s of validStrings) {
+        lines.add(prefix + padSuffix(s));
+      }
+    }
+
+    const sorted = [...lines].sort();
+    els.count.textContent = sorted.length;
+    els.preview.textContent = sorted.join('\n');
+
+    if (sorted.length === 0) {
+      els.preview.classList.add('hidden');
+      els.emptyHint.classList.remove('hidden');
+    } else {
+      els.preview.classList.remove('hidden');
+      els.emptyHint.classList.add('hidden');
+    }
+
+    if (errors.length) {
+      els.errorBox.classList.remove('hidden');
+      els.errorList.innerHTML = '';
+      for (const msg of errors) {
+        const li = document.createElement('li');
+        li.textContent = msg;
+        els.errorList.appendChild(li);
+      }
+    } else {
+      els.errorBox.classList.add('hidden');
+      els.errorList.innerHTML = '';
+    }
+
+    const hasContent = sorted.length > 0;
+    els.btnCopy.disabled = !hasContent;
+    els.btnDownload.disabled = !hasContent;
+    els.btnCopy.classList.toggle('opacity-50', !hasContent);
+    els.btnCopy.classList.toggle('cursor-not-allowed', !hasContent);
+    els.btnDownload.classList.toggle('opacity-50', !hasContent);
+    els.btnDownload.classList.toggle('cursor-not-allowed', !hasContent);
+  }
+
+  async function copyAll() {
+    const text = els.preview.textContent;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      flashButton(els.btnCopy, '已复制');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      flashButton(els.btnCopy, '已复制');
+    }
+  }
+
+  function flashButton(btn, text) {
+    const original = btn.textContent;
+    btn.textContent = text;
+    setTimeout(() => { btn.textContent = original; }, 1200);
+  }
+
+  function downloadFile() {
+    const text = els.preview.textContent;
+    if (!text) return;
+    const blob = new Blob([text + '\n'], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'profanity.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Bind events
+  ['prefix', 'customChars', 'customStrings'].forEach((id) => {
+    els[id].addEventListener('input', regenerate);
+  });
+  els.suffixLen.addEventListener('input', regenerate);
+  ['useDigits', 'useUpper', 'useLower'].forEach((id) => {
+    els[id].addEventListener('change', regenerate);
+  });
+  els.btnCopy.addEventListener('click', copyAll);
+  els.btnDownload.addEventListener('click', downloadFile);
+
+  // Default: enable uppercase to give a non-empty initial preview
+  els.useUpper.checked = true;
+  regenerate();
+})();
+</script>
+</body>
+</html>
